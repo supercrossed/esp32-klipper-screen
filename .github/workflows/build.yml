@@ -1,0 +1,142 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build firmware (ESP-IDF v5.5.6, esp32p4)
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.5.6
+          target: esp32p4
+          command: idf.py build && idf.py merge-bin -o merged.bin
+
+      - name: Collect binaries
+        run: |
+          VER="$(git describe --tags --always)"
+          echo "VER=$VER" >> "$GITHUB_ENV"
+          mkdir -p dist
+          cp build/bootloader/bootloader.bin           dist/bootloader.bin
+          cp build/partition_table/partition-table.bin dist/partition-table.bin
+          cp build/klipper_remote.bin                  dist/esp32-klipper-screen-app.bin
+          cp build/merged.bin                          "dist/esp32-klipper-screen-${VER}.bin"
+          cp build/flasher_args.json                   dist/flasher_args.json
+          (cd dist && sha256sum *.bin > SHA256SUMS.txt)
+          ls -l dist
+          SIZE=$(stat -c %s build/klipper_remote.bin)
+          echo "### Firmware ${VER}" >> "$GITHUB_STEP_SUMMARY"
+          echo "App image: ${SIZE} bytes (partition 8 MiB)" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ env.VER }}
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: firmware-*
+          path: dist
+          merge-multiple: true
+
+      - name: Release notes from CHANGELOG
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          awk -v v="$V" '
+            $0 ~ "^## \\[" v "\\]" {on=1; next}
+            on && /^## \[/ {exit}
+            on && /^\[[0-9]/ {exit}
+            on {print}
+          ' CHANGELOG.md > notes.md
+          cat >> notes.md <<'EOF'
+
+          ---
+          **Install:** use the [web installer](https://supercrossed.github.io/esp32-klipper-screen/) (Chrome/Edge), or flash with esptool:
+
+          | File | Flash at | Use |
+          |---|---|---|
+          | `esp32-klipper-screen-<version>.bin` | `0x0` | Fresh install (wipes settings) |
+          | `bootloader.bin` / `partition-table.bin` / `esp32-klipper-screen-app.bin` | `0x2000` / `0x8000` / `0x20000` | Update, keeps settings |
+
+          See [docs/INSTALL.md](https://github.com/supercrossed/esp32-klipper-screen/blob/main/docs/INSTALL.md).
+          EOF
+          cat notes.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: notes.md
+          files: |
+            dist/*.bin
+            dist/SHA256SUMS.txt
+            dist/flasher_args.json
+
+  pages:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: firmware-*
+          path: dist
+          merge-multiple: true
+
+      - name: Assemble web installer
+        run: |
+          mkdir -p site/firmware
+          cp web/index.html site/
+          cp dist/bootloader.bin dist/partition-table.bin dist/esp32-klipper-screen-app.bin site/firmware/
+          cat > site/manifest.json <<EOF
+          {
+            "name": "ESP32 Klipper Screen",
+            "version": "${GITHUB_REF_NAME#v}",
+            "new_install_prompt_erase": true,
+            "builds": [
+              {
+                "chipFamily": "ESP32-P4",
+                "parts": [
+                  { "path": "firmware/bootloader.bin", "offset": 8192 },
+                  { "path": "firmware/partition-table.bin", "offset": 32768 },
+                  { "path": "firmware/esp32-klipper-screen-app.bin", "offset": 131072 }
+                ]
+              }
+            ]
+          }
+          EOF
+          cat site/manifest.json
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
