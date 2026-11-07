@@ -41,6 +41,8 @@ It runs on the [Waveshare ESP32-P4 5″ touch display](https://www.waveshare.com
 | **Console**: the printer's console, send commands | **System**: restart services, reboot the host |
 | ![Spoolman](docs/images/spoolman.png) | ![Settings](docs/images/settings.png) |
 | **Spoolman** with a scannable spool QR code | **Settings** |
+| ![Update button](docs/images/home-update.png) | ![Update dialog](docs/images/update-dialog.png) |
+| A green **Update** button appears when a new version is out | See what's new, then install with one tap |
 
 ![Light mode](docs/images/home-light.png)
 

@@ -82,6 +82,8 @@ The top level is a grid of tiles:
 
 ## Updates
 
+![Update dialog](images/update-dialog.png)
+
 When a newer release is out, tap the green **Update** button, or go to *Settings → Updates → View update*. You'll see what's new and the download size. **Update now** downloads and installs it with a progress bar, then the display restarts. **Later** closes the dialog, and the button stays until you update.
 
 ## Keyboard
