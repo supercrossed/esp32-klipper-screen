@@ -54,6 +54,13 @@ Commands sent: AFC `CHANGE_TOOL LANE=<lane>`, `TOOL_UNLOAD`; Happy Hare `MMU_CHA
 - **Console:** `GET /server/gcode_store?count=150` every second while the Console tab is open. Commands are sent with `POST /printer/gcode/script`.
 - **System:** `GET /machine/system_info` every 5 s while the tab is open, which supplies `available_services` and `service_state`. Actions go to `POST /machine/services/{restart|stop|start}?service=…`, `POST /machine/reboot` and `POST /machine/shutdown`. Moonraker only lists services allowed by its `moonraker.asvc` file.
 
+## Tune, files, history and mesh
+
+- **Tune:** `SET_GCODE_OFFSET Z_ADJUST=… [MOVE=1]`, `M220`, `M221`, `M106`/`M107`. The current values come from `gcode_move` (`homing_origin`, `speed_factor`, `extrude_factor`) and `fan`.
+- **Files:** `GET /server/files/list?root=gcodes`, `GET /server/files/metadata`, the thumbnail from `/server/files/gcodes/…`, and `POST /printer/print/start?filename=…`.
+- **History:** `GET /server/history/list?limit=50&order=desc` and `/server/history/totals` (Moonraker's `[history]`, on by default).
+- **Mesh:** `bed_mesh` (`probed_matrix`, `mesh_min`, `mesh_max`, `profile_name`, `profiles`), plus `BED_MESH_PROFILE LOAD=`, `BED_MESH_CALIBRATE` and `BED_MESH_CLEAR`.
+
 ## Load on the printer
 
 The printer you're viewing is polled every 1 s with one `objects/query`. Every other printer gets a smaller query every 3 s. Both rates are adjustable in *Settings → Printers*. Offline printers back off to 8 s.

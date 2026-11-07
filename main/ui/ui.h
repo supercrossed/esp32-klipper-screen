@@ -12,6 +12,7 @@ typedef enum {
     PAGE_SETTINGS,
     PAGE_WIFI,
     PAGE_SPOOLMAN,        /* arg: printer idx */
+    PAGE_FILES,           /* arg: printer idx */
     PAGE_COUNT
 } page_id_t;
 
@@ -22,7 +23,7 @@ typedef struct {
     void (*destroy)(void);    /* free everything the page owns (called before widgets are deleted) */
 } ui_page_t;
 
-extern const ui_page_t page_home, page_printer, page_webcam, page_add_printer, page_settings, page_wifi, page_spoolman;
+extern const ui_page_t page_home, page_printer, page_webcam, page_add_printer, page_settings, page_wifi, page_spoolman, page_files;
 
 void ui_init(lv_display_t *disp);
 void ui_nav_push(page_id_t id, int arg);
@@ -51,6 +52,10 @@ extern ui_palette_t g_pal;
 #define COL_HOT       (g_pal.hot)
 
 void       ui_set_light_mode(bool light);          /* re-themes and rebuilds the current screen */
+void       ui_set_theme(int mode, int accent);     /* mode 0 dark / 1 light / 2 auto, -1 = keep */
+int        ui_accent_count(void);
+lv_color_t ui_accent_preview(void);              /* current accent in the current mode */
+const char *ui_accent_name(int i);
 lv_color_t ui_contrast(lv_color_t bg);             /* black or white text for a background */
 
 /* Montserrat copies whose fallback is the matching Material Design Icons size,
@@ -87,5 +92,6 @@ lv_color_t  ui_status_color(int printer_status);
 void        ui_fmt_duration(char *out, size_t cap, float seconds);
 void        ui_apply_brightness(void);
 void        ui_set_text(lv_obj_t *lbl, const char *txt);   /* only redraws on change */
+void        ui_alert_tick(void);                           /* job-ended banners (ui_alert.c) */
 void        ui_update_dialog(void);                        /* release notes + confirm (when an update is available) */
 void        ui_keyboard_setup(lv_obj_t *kb);               /* custom layouts (USER_1 = IP numpad) */

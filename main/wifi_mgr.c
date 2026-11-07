@@ -168,7 +168,8 @@ static void wifi_task(void *arg)
             break;
         case ACT_ONLINE:
             /* Network work, so it runs here rather than in the event handler. */
-            if (g_settings.tz_auto && !s_tz_done) s_tz_done = tz_autodetect();
+            /* time zone (when on Auto) and location for the sunrise/sunset theme */
+            if ((g_settings.tz_auto || !g_settings.has_loc) && !s_tz_done) s_tz_done = tz_autodetect();
             break;
         case ACT_DISCONNECT:
             s_state = WIFI_ST_IDLE;

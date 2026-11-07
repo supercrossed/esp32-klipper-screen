@@ -84,6 +84,15 @@ ICONS = {
     "CONSOLE":      "console-line",
     "SERVER":       "server",
     "SEND":         "send",
+    "FILE":         "file-document-outline",
+    "TUNE":         "tune-variant",
+    "HISTORY":      "history",
+    "MESH":         "grid",
+    "PALETTE":      "palette-outline",
+    "BELL":         "bell-outline",
+    "SUN":          "weather-sunny",
+    "MOON":         "weather-night",
+    "AUTO":         "theme-light-dark",
 }
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

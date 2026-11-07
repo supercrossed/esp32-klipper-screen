@@ -18,6 +18,7 @@
 #include "printers.h"
 #include "tz.h"
 #include "updater.h"
+#include "sound.h"
 
 enum { SEC_GRID = 0, SEC_NETWORK, SEC_PRINTERS, SEC_DISPLAY, SEC_TIME, SEC_UPDATES, SEC_DEVICE, SEC_COUNT };
 
@@ -129,12 +130,42 @@ static void orient_cb(lv_event_t *e)
     ui_confirm("Restart now?", "The new orientation is applied after a restart.", "Restart", COL_ACCENT, do_reboot, NULL);
 }
 
-static void theme_async(void *u) { ui_set_light_mode((bool)(intptr_t)u); }
-static void theme_cb(lv_event_t *e)
+/* Theme changes rebuild the whole screen (including the control that was tapped):
+ * apply them after the event returns. user data: (mode << 8) | accent, 0xFF = keep. */
+static void theme_async(void *u)
 {
-    bool light = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
-    /* rebuilds the whole screen, including this switch: do it after the event returns */
-    lv_async_call(theme_async, (void *)(intptr_t)light);
+    int v = (int)(intptr_t)u;
+    int mode = (v >> 8) & 0xFF, accent = v & 0xFF;
+    ui_set_theme(mode == 0xFF ? -1 : mode, accent == 0xFF ? -1 : accent);
+}
+static void mode_cb(lv_event_t *e)
+{
+    int m = lv_buttonmatrix_get_selected_button(lv_event_get_target(e));
+    if (m == g_settings.theme_mode || m > 2) return;
+    lv_async_call(theme_async, (void *)(intptr_t)((m << 8) | 0xFF));
+}
+static void accent_cb(lv_event_t *e)
+{
+    int a = (int)(intptr_t)lv_event_get_user_data(e);
+    if (a == g_settings.accent) return;
+    lv_async_call(theme_async, (void *)(intptr_t)((0xFF << 8) | a));
+}
+static void alerts_cb(lv_event_t *e)
+{
+    g_settings.alerts = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+    settings_save();
+}
+static const uint8_t VOLS[] = { 0, 40, 70, 95 };
+static void vol_cb(lv_event_t *e)
+{
+    g_settings.alert_vol = VOLS[lv_dropdown_get_selected(lv_event_get_target(e))];
+    settings_save();
+    sound_play(SOUND_TEST);
+}
+static void test_sound_cb(lv_event_t *e)
+{
+    if (!g_settings.alert_vol) { ui_toast("Alert sound is off"); return; }
+    sound_play(SOUND_DONE);
 }
 
 static void tz_cb(lv_event_t *e)
@@ -202,7 +233,8 @@ static void refresh_grid(void)
     ui_set_text(s_sum[SEC_NETWORK], t);
     snprintf(t, sizeof(t), "%d printer%s", printers_count(), printers_count() == 1 ? "" : "s");
     ui_set_text(s_sum[SEC_PRINTERS], t);
-    snprintf(t, sizeof(t), "%s mode  -  %d%% brightness", g_settings.light_mode ? "Light" : "Dark", g_settings.brightness);
+    snprintf(t, sizeof(t), "%s  -  %s  -  %d%%", g_settings.theme_mode == 2 ? "Auto theme" : g_settings.light_mode ? "Light" : "Dark",
+             ui_accent_name(g_settings.accent), g_settings.brightness);
     ui_set_text(s_sum[SEC_DISPLAY], t);
     if (wifi_mgr_time_valid()) {
         time_t now = time(NULL);
@@ -268,11 +300,53 @@ static void build_printers(lv_obj_t *c)
 static void build_display(lv_obj_t *c)
 {
     lv_obj_t *g = group(c, "APPEARANCE");
-    lv_obj_t *r = row(g, ICON_DISPLAY, "Light mode");
-    lv_obj_t *sw = lv_switch_create(r);
-    lv_obj_set_size(sw, 96, 48);
-    if (g_settings.light_mode) lv_obj_add_state(sw, LV_STATE_CHECKED);
-    lv_obj_add_event_cb(sw, theme_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    ui_label(g, FONT_M, COL_TEXT, ICON_AUTO "  Theme");
+    static const char *modes[] = { ICON_MOON "  Dark", ICON_SUN "  Light", ICON_AUTO "  Auto", "" };
+    lv_obj_t *bm = lv_buttonmatrix_create(g);
+    lv_buttonmatrix_set_map(bm, modes);
+    lv_buttonmatrix_set_button_ctrl_all(bm, LV_BUTTONMATRIX_CTRL_CHECKABLE);
+    lv_buttonmatrix_set_one_checked(bm, true);
+    lv_buttonmatrix_set_button_ctrl(bm, g_settings.theme_mode < 3 ? g_settings.theme_mode : 0, LV_BUTTONMATRIX_CTRL_CHECKED);
+    lv_obj_set_size(bm, LV_PCT(100), 68);
+    lv_obj_set_style_text_font(bm, FONT_M, 0);
+    lv_obj_set_style_bg_opa(bm, 0, 0);
+    lv_obj_set_style_border_width(bm, 0, 0);
+    lv_obj_set_style_pad_all(bm, 0, 0);
+    lv_obj_add_event_cb(bm, mode_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_t *mh = ui_label(g, FONT_S, COL_MUTED,
+                            g_settings.has_loc ? "Auto switches to light at sunrise and dark at sunset where you are."
+                                               : "Auto switches at sunrise and sunset once your location is known "
+                                                 "(looked up from your internet connection); until then 7:00-19:00.");
+    lv_label_set_long_mode(mh, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(mh, LV_PCT(100));
+
+    ui_label(g, FONT_M, COL_TEXT, ICON_PALETTE "  Accent colour");
+    lv_obj_t *sw = lv_obj_create(g);
+    lv_obj_set_size(sw, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(sw, 0, 0);
+    lv_obj_set_style_border_width(sw, 0, 0);
+    lv_obj_set_style_pad_all(sw, 0, 0);
+    lv_obj_set_style_pad_gap(sw, 12, 0);
+    lv_obj_set_flex_flow(sw, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_remove_flag(sw, LV_OBJ_FLAG_SCROLLABLE);
+    for (int i = 0; i < ui_accent_count(); i++) {
+        /* preview each accent in the current mode by asking the palette for it */
+        int saved = g_settings.accent;
+        g_settings.accent = i;
+        lv_color_t col = ui_accent_preview();
+        g_settings.accent = saved;
+        lv_obj_t *b = lv_button_create(sw);
+        lv_obj_set_size(b, 104, 84);
+        lv_obj_set_style_bg_color(b, col, 0);
+        lv_obj_set_style_radius(b, 14, 0);
+        lv_obj_set_style_shadow_width(b, 0, 0);
+        lv_obj_set_style_border_width(b, i == g_settings.accent ? 4 : 0, 0);
+        lv_obj_set_style_border_color(b, COL_TEXT, 0);
+        lv_obj_add_event_cb(b, accent_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+        lv_obj_t *l = ui_label(b, FONT_S, ui_contrast(col), ui_accent_name(i));
+        lv_obj_center(l);
+    }
+    lv_obj_t *r;
 
     ui_label(g, FONT_M, COL_TEXT, ICON_POWER "  Brightness");
     lv_obj_t *sl = lv_slider_create(g);
@@ -288,6 +362,18 @@ static void build_display(lv_obj_t *c)
     r = row(g2, ICON_RESTART, "Screen rotation");
     dropdown(r, "Landscape\nPortrait\nLandscape (flipped)\nPortrait (flipped)", g_settings.orientation, orient_cb);
     ui_label(g2, FONT_S, COL_MUTED, "Changing the rotation restarts the display.");
+
+    lv_obj_t *g3 = group(c, "ALERTS");
+    r = row(g3, ICON_BELL, "Show when a print finishes or fails");
+    lv_obj_t *as = lv_switch_create(r);
+    lv_obj_set_size(as, 96, 48);
+    if (g_settings.alerts) lv_obj_add_state(as, LV_STATE_CHECKED);
+    lv_obj_add_event_cb(as, alerts_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    r = row(g3, ICON_BELL, "Alert sound");
+    int vi = 0;
+    for (int i = 0; i < 4; i++) if (VOLS[i] == g_settings.alert_vol) vi = i;
+    dropdown(r, "Off\nQuiet\nNormal\nLoud", vi, vol_cb);
+    wide_btn(g3, ICON_BELL, "Test sound", COL_CARD2, test_sound_cb, NULL);
 }
 
 static void build_time(lv_obj_t *c)

@@ -18,7 +18,7 @@
 
 static const char *TAG = "machine";
 
-typedef enum { MODE_NONE = 0, MODE_SERVICES, MODE_CONSOLE } mode_t_;
+typedef enum { MODE_NONE = 0, MODE_SERVICES, MODE_CONSOLE, MODE_HISTORY, MODE_MESH } mode_t_;
 
 static SemaphoreHandle_t s_mtx;
 static volatile mode_t_ s_mode;
@@ -32,6 +32,11 @@ static int s_nsvc = -1;
 static con_line_t *s_con;              /* ring, oldest first after copy */
 static int s_ncon;
 static char s_err[96];
+static hist_job_t *s_hist;
+static int s_nhist = -1;
+static hist_totals_t s_tot;
+static mesh_t *s_mesh;
+static bool s_mesh_ok;
 
 static void lock(void) { xSemaphoreTake(s_mtx, portMAX_DELAY); }
 
@@ -152,6 +157,118 @@ static void fetch_console(esp_http_client_handle_t *conn, http_buf_t *b, const p
     cJSON_Delete(j);
 }
 
+static int get(esp_http_client_handle_t *conn, http_buf_t *b, const printer_cfg_t *pc, const char *path, cJSON **j)
+{
+    char url[200];
+    snprintf(url, sizeof(url), "http://%s:%u%s", pc->host, pc->port, path);
+    int st = http_request(conn, HTTP_METHOD_GET, url, pc->api_key, NULL, NULL, 0, b, 8000);
+    *j = NULL;
+    if (st == 200 && b->data) *j = cJSON_ParseWithLength((char *)b->data, b->len);
+    else {
+        lock();
+        snprintf(s_err, sizeof(s_err), st < 0 ? "No response from Moonraker" : "Moonraker HTTP %d", st);
+        unlock();
+    }
+    return st;
+}
+
+static float fnum(const cJSON *o, const char *k)
+{
+    const cJSON *v = cJSON_GetObjectItem(o, k);
+    return cJSON_IsNumber(v) ? (float)v->valuedouble : 0;
+}
+
+static void fetch_history(esp_http_client_handle_t *conn, http_buf_t *b, const printer_cfg_t *pc, uint32_t gen)
+{
+    cJSON *j;
+    get(conn, b, pc, "/server/history/list?limit=50&order=desc", &j);
+    if (!j) return;
+    hist_job_t *tmp = heap_caps_calloc(HIST_MAX, sizeof(hist_job_t), MALLOC_CAP_SPIRAM);
+    int n = 0;
+    const cJSON *e;
+    cJSON_ArrayForEach(e, cJSON_GetObjectItem(cJSON_GetObjectItem(j, "result"), "jobs")) {
+        if (!tmp || n >= HIST_MAX) break;
+        hist_job_t *h = &tmp[n++];
+        const cJSON *fn = cJSON_GetObjectItem(e, "filename"), *st = cJSON_GetObjectItem(e, "status");
+        if (cJSON_IsString(fn)) {
+            const char *sl = strrchr(fn->valuestring, '/');
+            strlcpy(h->file, sl ? sl + 1 : fn->valuestring, sizeof(h->file));
+        }
+        if (cJSON_IsString(st)) strlcpy(h->status, st->valuestring, sizeof(h->status));
+        const cJSON *t0 = cJSON_GetObjectItem(e, "start_time");
+        h->start = cJSON_IsNumber(t0) ? t0->valuedouble : 0;
+        h->print_s = fnum(e, "print_duration");
+        h->total_s = fnum(e, "total_duration");
+        h->filament_mm = fnum(e, "filament_used");
+    }
+    cJSON_Delete(j);
+    hist_totals_t tot = { 0 };
+    if (get(conn, b, pc, "/server/history/totals", &j) == 200 && j) {
+        const cJSON *t = cJSON_GetObjectItem(cJSON_GetObjectItem(j, "result"), "job_totals");
+        tot.jobs = (int)fnum(t, "total_jobs");
+        tot.total_s = fnum(t, "total_time");
+        tot.print_s = fnum(t, "total_print_time");
+        tot.filament_mm = fnum(t, "total_filament_used");
+    }
+    cJSON_Delete(j);
+    lock();
+    if (gen == s_gen && tmp) {
+        memcpy(s_hist, tmp, n * sizeof(hist_job_t));
+        s_nhist = n;
+        s_tot = tot;
+        s_err[0] = 0;
+        s_ver++;
+    }
+    unlock();
+    heap_caps_free(tmp);
+}
+
+static void fetch_mesh(esp_http_client_handle_t *conn, http_buf_t *b, const printer_cfg_t *pc, uint32_t gen)
+{
+    cJSON *j;
+    get(conn, b, pc, "/printer/objects/query?bed_mesh", &j);
+    if (!j) return;
+    const cJSON *bm = cJSON_GetObjectItem(cJSON_GetObjectItem(cJSON_GetObjectItem(j, "result"), "status"), "bed_mesh");
+    mesh_t *m = heap_caps_calloc(1, sizeof(mesh_t), MALLOC_CAP_SPIRAM);
+    if (m && bm) {
+        const cJSON *pn = cJSON_GetObjectItem(bm, "profile_name");
+        if (cJSON_IsString(pn)) strlcpy(m->profile, pn->valuestring, sizeof(m->profile));
+        const cJSON *mn = cJSON_GetObjectItem(bm, "mesh_min"), *mx = cJSON_GetObjectItem(bm, "mesh_max");
+        m->min_x = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(mn, 0));
+        m->min_y = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(mn, 1));
+        m->max_x = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(mx, 0));
+        m->max_y = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(mx, 1));
+        const cJSON *mat = cJSON_GetObjectItem(bm, "probed_matrix");
+        int rows = cJSON_GetArraySize(mat);
+        int cols = rows ? cJSON_GetArraySize(cJSON_GetArrayItem(mat, 0)) : 0;
+        /* Klipper reports [[0.0]] when no mesh is loaded */
+        if (rows > 1 && cols > 1 && rows <= MESH_MAX && cols <= MESH_MAX) {
+            m->rows = rows;
+            m->cols = cols;
+            for (int r = 0; r < rows; r++)
+                for (int c = 0; c < cols; c++) {
+                    const cJSON *v = cJSON_GetArrayItem(cJSON_GetArrayItem(mat, r), c);
+                    m->z[r][c] = cJSON_IsNumber(v) ? (float)v->valuedouble : 0;
+                }
+        }
+        const cJSON *pr;
+        cJSON_ArrayForEach(pr, cJSON_GetObjectItem(bm, "profiles")) {
+            if (m->nprofiles >= 8 || !pr->string) continue;
+            strlcpy(m->profiles[m->nprofiles++], pr->string, sizeof(m->profiles[0]));
+        }
+    }
+    cJSON_Delete(j);
+    lock();
+    if (gen == s_gen && m) {
+        *s_mesh = *m;
+        s_mesh_ok = true;
+        s_err[0] = 0;
+        s_ver++;
+    }
+    unlock();
+    heap_caps_free(m);
+}
+
 static void task(void *arg)
 {
     uint32_t gen = (uint32_t)(uintptr_t)arg;
@@ -163,8 +280,11 @@ static void task(void *arg)
         mode_t_ m = s_mode;
         if (m == MODE_SERVICES) fetch_services(&conn, &b, &pc, gen);
         else if (m == MODE_CONSOLE) fetch_console(&conn, &b, &pc, gen);
+        else if (m == MODE_HISTORY) fetch_history(&conn, &b, &pc, gen);
+        else if (m == MODE_MESH) fetch_mesh(&conn, &b, &pc, gen);
         else break;
-        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(m == MODE_CONSOLE ? 1000 : 5000));
+        int wait = m == MODE_CONSOLE ? 1000 : m == MODE_SERVICES ? 5000 : m == MODE_MESH ? 10000 : 15000;
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(wait));
     }
     http_conn_close(&conn);
     http_buf_free(&b);
@@ -180,6 +300,8 @@ static void start(int idx, mode_t_ m)
         s_mtx = xSemaphoreCreateMutex();
         s_svc = heap_caps_calloc(SVC_MAX, sizeof(svc_t), MALLOC_CAP_SPIRAM);
         s_con = heap_caps_calloc(CONSOLE_MAX, sizeof(con_line_t), MALLOC_CAP_SPIRAM);
+        s_hist = heap_caps_calloc(HIST_MAX, sizeof(hist_job_t), MALLOC_CAP_SPIRAM);
+        s_mesh = heap_caps_calloc(1, sizeof(mesh_t), MALLOC_CAP_SPIRAM);
     }
     machine_stop();
     lock();
@@ -187,6 +309,8 @@ static void start(int idx, mode_t_ m)
     s_mode = m;
     s_nsvc = -1;
     s_ncon = 0;
+    s_nhist = -1;
+    s_mesh_ok = false;
     s_err[0] = 0;
     s_ver++;
     uint32_t gen = ++s_gen;
@@ -201,6 +325,30 @@ static void start(int idx, mode_t_ m)
 
 void machine_start_services(int idx) { start(idx, MODE_SERVICES); }
 void machine_start_console(int idx) { start(idx, MODE_CONSOLE); }
+void machine_start_history(int idx) { start(idx, MODE_HISTORY); }
+void machine_start_mesh(int idx) { start(idx, MODE_MESH); }
+
+int machine_history(hist_job_t *out, int max, hist_totals_t *tot)
+{
+    if (!s_mtx) return -1;
+    lock();
+    int n = s_nhist;
+    if (n > max) n = max;
+    if (n > 0) memcpy(out, s_hist, n * sizeof(hist_job_t));
+    if (tot) *tot = s_tot;
+    unlock();
+    return n;
+}
+
+bool machine_mesh(mesh_t *out)
+{
+    if (!s_mtx) return false;
+    lock();
+    bool ok = s_mesh_ok;
+    if (ok) *out = *s_mesh;
+    unlock();
+    return ok;
+}
 
 void machine_stop(void)
 {

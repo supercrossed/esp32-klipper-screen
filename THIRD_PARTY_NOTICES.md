@@ -16,5 +16,5 @@ This project's own source code is MIT-licensed (see [LICENSE](LICENSE)). Release
 The full set of downloaded components and their exact versions is listed in [`dependencies.lock`](dependencies.lock).
 
 The firmware also talks to these services at runtime:
-- **ip-api.com**: used once at boot, only while the time zone is set to *Auto*, to look up the time zone from your public IP address. Choosing a time zone in *Settings → Time* stops the lookup.
+- **ip-api.com**: used once after connecting, to look up the time zone (while it's set to *Auto*) and a rough location (for the sunrise/sunset theme) from your public IP address. Once a location is stored and a time zone is chosen by hand, it isn't contacted again.
 - **pool.ntp.org / time.google.com**: clock sync (NTP).

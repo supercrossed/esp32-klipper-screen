@@ -13,7 +13,13 @@ typedef struct {
     char     tz[48];          /* POSIX TZ string */
     uint8_t  tz_auto;         /* 1 = detect from public IP once online */
     char     device_name[32];
-    uint8_t  light_mode;      /* 0 dark, 1 light */
+    uint8_t  light_mode;      /* currently applied: 0 dark, 1 light */
+    uint8_t  theme_mode;      /* 0 dark, 1 light, 2 auto (sunrise/sunset) */
+    uint8_t  accent;          /* index into the accent colour list */
+    float    lat, lon;        /* location for sunrise/sunset (from the IP lookup) */
+    uint8_t  has_loc;
+    uint8_t  alert_vol;       /* 0 = alerts silent, else speaker volume % */
+    uint8_t  alerts;          /* 1 = show job-finished banners */
 } app_settings_t;
 
 extern app_settings_t g_settings;

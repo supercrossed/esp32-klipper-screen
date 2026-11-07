@@ -19,13 +19,17 @@ It runs on the [Waveshare ESP32-P4 5″ touch display](https://www.waveshare.com
 - **Give printers nicknames** so you know which is which.
 - **Add printers easily.** Search your network, or type in the address.
 - **Control a printer.** Pause, resume or cancel prints, set temperatures, home and move the axes, extrude filament, run your macros, or hit the emergency stop.
+- **Fine-tune while printing.** Adjust the Z offset, speed, flow and fan on the fly.
+- **Start prints.** Browse each printer's files with pictures and print times.
+- **Get told when prints finish.** A banner and a chime when any printer finishes or fails, even if you're looking at another one.
+- **History and bed mesh.** Past jobs with totals, and a colour map of the bed.
 - **Console.** See the printer's console and type commands, like in Mainsail or Fluidd.
 - **System controls.** Restart Klipper, restart services, or reboot and shut down the printer's computer.
 - **Watch the camera** full screen.
 - **Multi-material support** for AFC (Box Turtle) and Happy Hare. See which filament is in each lane and where the loaded one is.
 - **Spoolman support.** Browse your spools and filaments, pick the active spool, and show a spool's QR code to scan.
 - **Updates itself.** When a new version is out, an *Update* button appears. One tap installs it.
-- **Light and dark mode.** It also connects to Wi-Fi on first start, keeps the time, and works in landscape or portrait.
+- **Looks the way you like.** Light, dark, or automatic by sunrise and sunset, in six accent colours. It also connects to Wi-Fi on first start, keeps the time, and works in landscape or portrait.
 
 ## Screenshots
 

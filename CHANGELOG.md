@@ -2,6 +2,21 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
+## [0.4.0] - 2026-11-07
+
+### Added
+- **Tune** (left menu): adjust the Z offset (babystep) during a print, plus speed, flow and part-fan sliders.
+- **Files** (left menu): browse the printer's files, newest first, with the picture, print time and filament, and start a print.
+- **Print alerts.** When any printer finishes, fails or is cancelled, a banner pops up with an *Open* button, and the display plays a chime. You can turn it off or change the volume in Settings → Display.
+- **History** (right menu): recent jobs and lifetime totals.
+- **Mesh** (right menu): a colour map of the bed mesh, saved profiles to load, and Calibrate / Clear.
+- **Camera picker** when a printer has more than one camera.
+- **Auto theme:** switches to light at sunrise and dark at sunset where you are. Choose Dark, Light or Auto in Settings → Display.
+- **Accent colours:** Blue, Orange, Green, Purple, Pink or Teal, each tuned for both light and dark mode.
+
+### Changed
+- Automatic time zone now also remembers your rough location, used only for sunrise and sunset.
+
 ## [0.3.0] - 2026-11-07
 
 ### Added
@@ -59,6 +74,7 @@ First public release.
 - USB serial console for headless setup and debugging.
 - Web installer (GitHub Pages) and CI release builds.
 
+[0.4.0]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.0
 [0.3.0]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.3.0
 [0.2.0]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.2.0
 [0.1.0]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.1.0

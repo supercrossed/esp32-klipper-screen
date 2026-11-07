@@ -12,9 +12,12 @@
 #include "printers.h"
 #include "wifi_mgr.h"
 #include "machine.h"
+#include "esp_timer.h"
+#include <math.h>
 #include "esp_heap_caps.h"
 
-typedef enum { TAB_STATUS = 0, TAB_MOVE, TAB_EXTRUDE, TAB_MMU, TAB_MACROS, TAB_CONSOLE, TAB_SYSTEM, TAB_COUNT } tab_t;
+typedef enum { TAB_STATUS = 0, TAB_TUNE, TAB_MOVE, TAB_EXTRUDE, TAB_MMU, TAB_MACROS,
+               TAB_CONSOLE, TAB_SYSTEM, TAB_HISTORY, TAB_MESH, TAB_COUNT } tab_t;
 
 #define SIDEBAR_W 104
 #define PATH_N 5
@@ -58,7 +61,15 @@ static struct {
     /* system tab */
     lv_obj_t *svc_list, *svc_status;
     uint32_t mver;
+    /* tune tab */
+    lv_obj_t *z_lbl, *sl[3], *sl_lbl[3], *fan_card;
+    /* history tab */
+    lv_obj_t *hist_tot, *hist_list;
+    /* mesh tab */
+    lv_obj_t *mesh_info, *mesh_grid, *mesh_prof;
 } W;
+static int64_t s_tune_touch;   /* last slider interaction: don't overwrite it from polls */
+static int s_zstep_i = 1;
 
 static const char *stat_names[6] = { ICON_CLOCK "  Elapsed", ICON_TIMER "  Left", ICON_ETA "  ETA",
                                       ICON_LAYERS "  Layer", ICON_SPOOL "  Filament", ICON_SPEED "  Speed" };
@@ -1054,6 +1065,319 @@ static void refresh_system(bool fresh)
     ui_set_text(W.svc_status, n ? "Services managed by Moonraker" : "Moonraker lists no services");
 }
 
+/* ── TUNE tab ────────────────────────────────────────────────────────── */
+static const float ZSTEPS[] = { 0.005f, 0.01f, 0.025f, 0.05f };
+enum { SL_SPEED = 0, SL_FLOW, SL_FAN };
+
+static void zstep_cb(lv_event_t *e) { s_zstep_i = lv_buttonmatrix_get_selected_button(lv_event_get_target(e)); }
+
+static void z_cb(lv_event_t *e)
+{
+    int dir = (int)(intptr_t)lv_event_get_user_data(e);
+    char g[96];
+    bool homed_z = strchr(s_st.homed, 'z') != NULL;
+    if (dir == 0) snprintf(g, sizeof(g), "SET_GCODE_OFFSET Z=0%s", homed_z ? " MOVE=1" : "");
+    else snprintf(g, sizeof(g), "SET_GCODE_OFFSET Z_ADJUST=%+.3f%s", dir * ZSTEPS[s_zstep_i], homed_z ? " MOVE=1" : "");
+    printers_gcode(s_idx, g, "Z offset", true);
+}
+
+static void slider_label(int k, int v)
+{
+    static const char *names[3] = { ICON_SPEED "  Speed", ICON_EXTRUDE "  Flow", ICON_FAN "  Part fan" };
+    char t[48];
+    snprintf(t, sizeof(t), "%s   %d%%", names[k], v);
+    ui_set_text(W.sl_lbl[k], t);
+}
+
+static void slider_cb(lv_event_t *e)
+{
+    int k = (int)(intptr_t)lv_event_get_user_data(e);
+    int v = lv_slider_get_value(W.sl[k]);
+    s_tune_touch = esp_timer_get_time();
+    slider_label(k, v);
+    if (lv_event_get_code(e) != LV_EVENT_RELEASED) return;
+    char g[48];
+    if (k == SL_SPEED) snprintf(g, sizeof(g), "M220 S%d", v);
+    else if (k == SL_FLOW) snprintf(g, sizeof(g), "M221 S%d", v);
+    else snprintf(g, sizeof(g), "M106 S%d", v * 255 / 100);
+    printers_gcode(s_idx, g, k == SL_SPEED ? "Speed" : k == SL_FLOW ? "Flow" : "Fan", true);
+}
+
+static void slider_reset_cb(lv_event_t *e)
+{
+    int k = (int)(intptr_t)lv_event_get_user_data(e);
+    int v = k == SL_FAN ? 0 : 100;
+    lv_slider_set_value(W.sl[k], v, LV_ANIM_OFF);
+    slider_label(k, v);
+    s_tune_touch = esp_timer_get_time();
+    printers_gcode(s_idx, k == SL_SPEED ? "M220 S100" : k == SL_FLOW ? "M221 S100" : "M107",
+                   k == SL_SPEED ? "Speed" : k == SL_FLOW ? "Flow" : "Fan", true);
+}
+
+static lv_obj_t *slider_card(lv_obj_t *parent, int k, int min, int max, const char *reset)
+{
+    lv_obj_t *c = card(parent, NULL);
+    lv_obj_t *r = plain(c, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(r, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    W.sl_lbl[k] = ui_label(r, FONT_L, COL_TEXT, "");
+    lv_obj_t *rb = ui_button(r, NULL, reset, COL_CARD2, slider_reset_cb, (void *)(intptr_t)k);
+    lv_obj_set_style_min_height(rb, 48, 0);
+    lv_obj_set_style_pad_ver(rb, 6, 0);
+    W.sl[k] = lv_slider_create(c);
+    lv_obj_set_width(W.sl[k], LV_PCT(94));
+    lv_obj_set_height(W.sl[k], 22);
+    lv_obj_set_style_pad_ver(W.sl[k], 18, 0);
+    lv_obj_set_style_margin_left(W.sl[k], 12, 0);
+    lv_slider_set_range(W.sl[k], min, max);
+    lv_obj_add_event_cb(W.sl[k], slider_cb, LV_EVENT_VALUE_CHANGED, (void *)(intptr_t)k);
+    lv_obj_add_event_cb(W.sl[k], slider_cb, LV_EVENT_RELEASED, (void *)(intptr_t)k);
+    return c;
+}
+
+static void build_tune(lv_obj_t *p)
+{
+    bool portrait = ui_is_portrait();
+    lv_obj_set_flex_flow(p, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_t *left = plain(p, LV_FLEX_FLOW_COLUMN);
+    lv_obj_t *right = plain(p, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_gap(left, 16, 0);
+    lv_obj_set_style_pad_gap(right, 16, 0);
+    if (!portrait) {
+        int w = panel_width() - 16;
+        lv_obj_set_width(left, w / 2);
+        lv_obj_set_width(right, w - w / 2);
+    }
+    lv_obj_t *zc = card(left, "Z OFFSET  (babystep)");
+    W.z_lbl = ui_label(zc, FONT_XXL, COL_TEXT, "--");
+    static const char *zmap[] = { "0.005", "0.01", "0.025", "0.05 mm", "" };
+    selector(zc, zmap, s_zstep_i, zstep_cb);
+    lv_obj_t *zr = plain(zc, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_gap(zr, 12, 0);
+    ui_tile_button(zr, ICON_DOWN, "Lower (closer)", COL_CARD2, z_cb, (void *)(intptr_t)-1);
+    ui_tile_button(zr, ICON_UP, "Raise", COL_CARD2, z_cb, (void *)(intptr_t)1);
+    lv_obj_t *rr = plain(zc, LV_FLEX_FLOW_ROW);
+    lv_obj_t *rz = ui_button(rr, ICON_RESTART, "Reset to 0", COL_CARD2, z_cb, (void *)(intptr_t)0);
+    lv_obj_set_flex_grow(rz, 1);
+    lv_obj_t *hint = ui_label(zc, FONT_S, COL_MUTED, "Babystepping is temporary. Save it in your printer's config to keep it.");
+    lv_label_set_long_mode(hint, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(hint, LV_PCT(100));
+
+    slider_card(right, SL_SPEED, 10, 300, "100%");
+    slider_card(right, SL_FLOW, 50, 150, "100%");
+    W.fan_card = slider_card(right, SL_FAN, 0, 100, "Off");
+    s_tune_touch = 0;
+}
+
+static void refresh_tune(bool fresh)
+{
+    if (!fresh) return;
+    char b[48];
+    bool down = s_st.status == PS_OFFLINE || s_st.status == PS_KLIPPY_DOWN;
+    snprintf(b, sizeof(b), down ? "--" : "%+.3f mm", s_st.z_offset);
+    ui_set_text(W.z_lbl, b);
+    show(W.fan_card, s_st.has_fan);
+    if (esp_timer_get_time() - s_tune_touch < 3000000) return;   /* user is adjusting */
+    int v[3] = { (int)(s_st.speed_factor * 100 + 0.5f), (int)(s_st.extrude_factor * 100 + 0.5f),
+                 (int)(s_st.fan_speed * 100 + 0.5f) };
+    if (v[2] < 0) v[2] = 0;
+    for (int k = 0; k < 3; k++) {
+        if (lv_obj_has_state(W.sl[k], LV_STATE_PRESSED)) continue;
+        lv_slider_set_value(W.sl[k], v[k], LV_ANIM_OFF);
+        slider_label(k, v[k]);
+    }
+}
+
+/* ── HISTORY tab ─────────────────────────────────────────────────────── */
+static hist_job_t *s_hist;
+
+static void build_history(lv_obj_t *p)
+{
+    lv_obj_set_flex_flow(p, LV_FLEX_FLOW_COLUMN);
+    lv_obj_t *tc = card(p, "TOTALS");
+    W.hist_tot = ui_label(tc, FONT_L, COL_TEXT, "Loading history...");
+    lv_obj_t *lc = card(p, "RECENT JOBS");
+    W.hist_list = plain(lc, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_gap(W.hist_list, 8, 0);
+    if (!s_hist) s_hist = heap_caps_malloc(HIST_MAX * sizeof(hist_job_t), MALLOC_CAP_SPIRAM);
+    W.mver = UINT32_MAX;
+    machine_start_history(s_idx);
+}
+
+static void refresh_history(bool fresh)
+{
+    char err[96];
+    bool failed = machine_error(err, sizeof(err));
+    if (machine_version() == W.mver && !failed) return;
+    W.mver = machine_version();
+    if (failed) { ui_set_text(W.hist_tot, err); return; }
+    hist_totals_t tot;
+    int n = s_hist ? machine_history(s_hist, HIST_MAX, &tot) : -1;
+    if (n < 0) return;
+    char a[24], b[160];
+    ui_fmt_duration(a, sizeof(a), tot.print_s);
+    snprintf(b, sizeof(b), ICON_PRINTER " %d jobs     " ICON_CLOCK " %s printing     " ICON_SPOOL " %.1f m filament",
+             tot.jobs, a, tot.filament_mm / 1000);
+    ui_set_text(W.hist_tot, b);
+    lv_obj_clean(W.hist_list);
+    for (int i = 0; i < n; i++) {
+        const hist_job_t *h = &s_hist[i];
+        bool ok = !strcmp(h->status, "completed");
+        bool cancel = !strcmp(h->status, "cancelled");
+        bool running = !strcmp(h->status, "in_progress");
+        lv_color_t col = ok ? COL_OK : cancel ? COL_MUTED : running ? COL_ACCENT : COL_ERR;
+        lv_obj_t *r = lv_obj_create(W.hist_list);
+        lv_obj_set_size(r, LV_PCT(100), 72);
+        lv_obj_set_style_bg_color(r, COL_CARD2, 0);
+        lv_obj_set_style_border_width(r, 0, 0);
+        lv_obj_set_style_radius(r, 12, 0);
+        lv_obj_set_style_pad_hor(r, 14, 0);
+        lv_obj_remove_flag(r, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_t *ic = ui_label(r, FONT_XL, col, ok ? ICON_CHECK : cancel ? ICON_CANCEL : running ? ICON_PLAY : ICON_ALERT);
+        lv_obj_align(ic, LV_ALIGN_LEFT_MID, 0, 0);
+        lv_obj_t *l1 = ui_label(r, FONT_M, COL_TEXT, h->file);
+        lv_label_set_long_mode(l1, LV_LABEL_LONG_DOT);
+        lv_obj_set_width(l1, LV_PCT(85));
+        lv_obj_align(l1, LV_ALIGN_TOP_LEFT, 50, 6);
+        char d[32], dur[24];
+        time_t t = (time_t)h->start;
+        struct tm tm;
+        localtime_r(&t, &tm);
+        strftime(d, sizeof(d), "%d %b %Y, %H:%M", &tm);
+        ui_fmt_duration(dur, sizeof(dur), h->print_s);
+        snprintf(b, sizeof(b), "%s  -  %s  -  %.2f m  -  %s", d, dur, h->filament_mm / 1000,
+                 ok ? "Completed" : cancel ? "Cancelled" : running ? "Printing" : h->status);
+        lv_obj_t *l2 = ui_label(r, FONT_S, COL_MUTED, b);
+        lv_label_set_long_mode(l2, LV_LABEL_LONG_DOT);
+        lv_obj_set_width(l2, LV_PCT(85));
+        lv_obj_align(l2, LV_ALIGN_BOTTOM_LEFT, 50, -6);
+    }
+    if (!n) ui_label(W.hist_list, FONT_M, COL_MUTED, "No print history yet.");
+}
+
+/* ── MESH tab ────────────────────────────────────────────────────────── */
+static mesh_t *s_mesh;
+static char s_mesh_cmd[64];
+
+static void do_mesh_cmd(void *u) { printers_gcode(s_idx, s_mesh_cmd, "Bed mesh", false); machine_refresh_now(); }
+
+static void mesh_load_cb(lv_event_t *e)
+{
+    int i = (int)(intptr_t)lv_event_get_user_data(e);
+    if (!s_mesh || i >= s_mesh->nprofiles) return;
+    snprintf(s_mesh_cmd, sizeof(s_mesh_cmd), "BED_MESH_PROFILE LOAD=%s", s_mesh->profiles[i]);
+    do_mesh_cmd(NULL);
+}
+
+static void mesh_cal_cb(lv_event_t *e)
+{
+    if (busy_printing()) { ui_toast("Not while printing"); return; }
+    bool homed = strchr(s_st.homed, 'x') && strchr(s_st.homed, 'y') && strchr(s_st.homed, 'z');
+    strlcpy(s_mesh_cmd, homed ? "BED_MESH_CALIBRATE" : "G28\nBED_MESH_CALIBRATE", sizeof(s_mesh_cmd));
+    ui_confirm("Calibrate bed mesh?", homed ? "The printer probes the bed. This takes a few minutes."
+                                            : "The printer homes, then probes the bed. This takes a few minutes.",
+               "Calibrate", COL_ACCENT, do_mesh_cmd, NULL);
+}
+
+static void mesh_clear_cb(lv_event_t *e)
+{
+    strlcpy(s_mesh_cmd, "BED_MESH_CLEAR", sizeof(s_mesh_cmd));
+    do_mesh_cmd(NULL);
+}
+
+static lv_color_t mesh_color(float z, float span)
+{
+    /* blue (low) -> green (0) -> red (high), relative to the largest deviation */
+    float t = span > 0 ? z / span : 0;
+    if (t < -1) t = -1;
+    if (t > 1) t = 1;
+    if (t < 0) return lv_color_mix(lv_color_hex(0x2F6FDE), lv_color_hex(0x2FBF71), (uint8_t)(-t * 255));
+    return lv_color_mix(lv_color_hex(0xE5484D), lv_color_hex(0x2FBF71), (uint8_t)(t * 255));
+}
+
+static void build_mesh(lv_obj_t *p)
+{
+    lv_obj_set_flex_flow(p, LV_FLEX_FLOW_ROW_WRAP);
+    int w = panel_width() - 16;
+    lv_obj_t *mc = card(p, "BED MESH");
+    lv_obj_set_width(mc, ui_is_portrait() ? LV_PCT(100) : w * 60 / 100);
+    W.mesh_info = ui_label(mc, FONT_M, COL_TEXT, "Loading mesh...");
+    lv_label_set_long_mode(W.mesh_info, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(W.mesh_info, LV_PCT(100));
+    W.mesh_grid = lv_obj_create(mc);
+    lv_obj_set_size(W.mesh_grid, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(W.mesh_grid, 0, 0);
+    lv_obj_set_style_border_width(W.mesh_grid, 0, 0);
+    lv_obj_set_style_pad_all(W.mesh_grid, 0, 0);
+    lv_obj_remove_flag(W.mesh_grid, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *ac = card(p, "PROFILES");
+    lv_obj_set_width(ac, ui_is_portrait() ? LV_PCT(100) : w - w * 60 / 100);
+    W.mesh_prof = plain(ac, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_gap(W.mesh_prof, 8, 0);
+    lv_obj_t *br = plain(ac, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_gap(br, 12, 0);
+    ui_tile_button(br, ICON_MESH, "Calibrate", COL_ACCENT, mesh_cal_cb, NULL);
+    ui_tile_button(br, ICON_CLOSE, "Clear", COL_CARD2, mesh_clear_cb, NULL);
+    if (!s_mesh) s_mesh = heap_caps_malloc(sizeof(mesh_t), MALLOC_CAP_SPIRAM);
+    W.mver = UINT32_MAX;
+    machine_start_mesh(s_idx);
+}
+
+static void refresh_mesh(bool fresh)
+{
+    char err[96];
+    bool failed = machine_error(err, sizeof(err));
+    if (machine_version() == W.mver && !failed) return;
+    W.mver = machine_version();
+    if (failed) { ui_set_text(W.mesh_info, err); return; }
+    if (!s_mesh || !machine_mesh(s_mesh)) return;
+    mesh_t *m = s_mesh;
+    lv_obj_clean(W.mesh_grid);
+    char b[160];
+    if (m->rows < 2) {
+        ui_set_text(W.mesh_info, ICON_INFO "  No mesh loaded. Load a profile or calibrate.");
+    } else {
+        float lo = m->z[0][0], hi = lo;
+        for (int r = 0; r < m->rows; r++)
+            for (int c = 0; c < m->cols; c++) { if (m->z[r][c] < lo) lo = m->z[r][c]; if (m->z[r][c] > hi) hi = m->z[r][c]; }
+        snprintf(b, sizeof(b), "Profile: %s   -   %dx%d points   -   range %.3f mm (%.3f to %+.3f)",
+                 m->profile[0] ? m->profile : "(unsaved)", m->cols, m->rows, hi - lo, lo, hi);
+        ui_set_text(W.mesh_info, b);
+        float span = fabsf(lo) > fabsf(hi) ? fabsf(lo) : fabsf(hi);
+        lv_obj_update_layout(W.mesh_grid);
+        int gw = lv_obj_get_content_width(W.mesh_grid);
+        int cell = (gw - (m->cols - 1) * 4) / m->cols;
+        if (cell > 64) cell = 64;
+        lv_obj_set_height(W.mesh_grid, m->rows * (cell + 4));
+        for (int r = 0; r < m->rows; r++) {
+            for (int c = 0; c < m->cols; c++) {
+                /* row 0 is the front (min Y): draw it at the bottom, like Mainsail's top view */
+                lv_obj_t *o = lv_obj_create(W.mesh_grid);
+                lv_obj_set_size(o, cell, cell);
+                lv_obj_set_pos(o, c * (cell + 4), (m->rows - 1 - r) * (cell + 4));
+                lv_obj_set_style_radius(o, 6, 0);
+                lv_obj_set_style_border_width(o, 0, 0);
+                lv_obj_set_style_pad_all(o, 0, 0);
+                lv_obj_set_style_bg_color(o, mesh_color(m->z[r][c], span), 0);
+                lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+                if (cell >= 44) {
+                    snprintf(b, sizeof(b), "%.2f", m->z[r][c]);
+                    lv_obj_t *l = ui_label(o, &lv_font_montserrat_14, lv_color_white(), b);
+                    lv_obj_center(l);
+                }
+            }
+        }
+    }
+    lv_obj_clean(W.mesh_prof);
+    for (int i = 0; i < m->nprofiles; i++) {
+        bool active = !strcmp(m->profiles[i], m->profile);
+        snprintf(b, sizeof(b), "%s%s", m->profiles[i], active ? "   (loaded)" : "");
+        lv_obj_t *bt = ui_button(W.mesh_prof, ICON_MESH, b, active ? COL_OK : COL_CARD2, mesh_load_cb, (void *)(intptr_t)i);
+        lv_obj_set_width(bt, LV_PCT(100));
+    }
+    if (!m->nprofiles) ui_label(W.mesh_prof, FONT_S, COL_MUTED, "No saved profiles.");
+}
+
 /* ── tabs / sidebar ──────────────────────────────────────────────────── */
 static void set_tab(tab_t t)
 {
@@ -1074,6 +1398,9 @@ static void set_tab(tab_t t)
     case TAB_MACROS: build_macros(s_panel); break;
     case TAB_CONSOLE: build_console(s_panel); break;
     case TAB_SYSTEM: build_system(s_panel); break;
+    case TAB_TUNE: build_tune(s_panel); break;
+    case TAB_HISTORY: build_history(s_panel); break;
+    case TAB_MESH: build_mesh(s_panel); break;
     default: break;
     }
     for (int i = 0; i < TAB_COUNT; i++) {
@@ -1090,7 +1417,40 @@ static void side_cb(lv_event_t *e)
     if (t != s_tab) set_tab(t);
 }
 
-static void cam_cb(lv_event_t *e) { ui_nav_push(PAGE_WEBCAM, s_idx * 16); }
+static lv_obj_t *s_cam_menu;
+static void cam_pick_cb(lv_event_t *e)
+{
+    int c = (int)(intptr_t)lv_event_get_user_data(e);
+    if (s_cam_menu) { lv_obj_delete_async(s_cam_menu); s_cam_menu = NULL; }
+    ui_nav_push(PAGE_WEBCAM, s_idx * 16 + c);
+}
+static void cam_menu_close(lv_event_t *e) { if (s_cam_menu) { lv_obj_delete_async(s_cam_menu); s_cam_menu = NULL; } }
+static void cam_cb(lv_event_t *e)
+{
+    if (s_st.nwebcams <= 1) { ui_nav_push(PAGE_WEBCAM, s_idx * 16); return; }
+    /* several cameras: let the user pick */
+    s_cam_menu = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(s_cam_menu, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_color(s_cam_menu, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(s_cam_menu, LV_OPA_60, 0);
+    lv_obj_set_style_border_width(s_cam_menu, 0, 0);
+    lv_obj_set_style_radius(s_cam_menu, 0, 0);
+    lv_obj_add_event_cb(s_cam_menu, cam_menu_close, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *box = ui_card(s_cam_menu);
+    lv_obj_set_size(box, 480, LV_SIZE_CONTENT);
+    lv_obj_center(box);
+    lv_obj_set_flex_flow(box, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(box, 20, 0);
+    lv_obj_set_style_pad_gap(box, 12, 0);
+    lv_obj_add_flag(box, LV_OBJ_FLAG_CLICKABLE);   /* taps inside don't close it */
+    ui_label(box, FONT_L, COL_TEXT, ICON_WEBCAM "  Choose a camera");
+    for (int i = 0; i < s_st.nwebcams; i++) {
+        lv_obj_t *b = ui_button(box, ICON_WEBCAM, s_st.webcams[i].name[0] ? s_st.webcams[i].name : "Camera",
+                                COL_CARD2, cam_pick_cb, (void *)(intptr_t)i);
+        lv_obj_set_width(b, LV_PCT(100));
+    }
+}
+static void files_cb(lv_event_t *e) { ui_nav_push(PAGE_FILES, s_idx); }
 static void spool_cb(lv_event_t *e) { ui_nav_push(PAGE_SPOOLMAN, s_idx); }
 
 static lv_obj_t *side_btn(lv_obj_t *bar, const char *sym, const char *txt, lv_event_cb_t cb, void *u)
@@ -1139,10 +1499,12 @@ static void create(lv_obj_t *parent, int idx)
     lv_obj_set_flex_flow(bar, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_scroll_dir(bar, LV_DIR_VER);
     s_side_btn[TAB_STATUS] = side_btn(bar, ICON_STATUS, "Status", side_cb, (void *)TAB_STATUS);
+    s_side_btn[TAB_TUNE]   = side_btn(bar, ICON_TUNE, "Tune", side_cb, (void *)TAB_TUNE);
     s_side_btn[TAB_MOVE]   = side_btn(bar, ICON_MOVE, "Move", side_cb, (void *)TAB_MOVE);
     s_side_btn[TAB_EXTRUDE] = side_btn(bar, ICON_EXTRUDE, "Extrude", side_cb, (void *)TAB_EXTRUDE);
     s_side_btn[TAB_MMU]    = side_btn(bar, ICON_MMU, "MMU", side_cb, (void *)TAB_MMU);
     s_side_btn[TAB_MACROS] = side_btn(bar, ICON_MACRO, "Macros", side_cb, (void *)TAB_MACROS);
+    side_btn(bar, ICON_FILE, "Files", files_cb, NULL);
     show(s_side_btn[TAB_MMU], s_st.mmu.type != MMU_NONE);
     show(s_side_btn[TAB_MACROS], s_st.nmacros > 0);
 
@@ -1168,6 +1530,9 @@ static void create(lv_obj_t *parent, int idx)
     s_spool_btn = side_btn(rbar, ICON_SPOOL, "Spools", spool_cb, NULL);
     s_side_btn[TAB_CONSOLE] = side_btn(rbar, ICON_CONSOLE, "Console", side_cb, (void *)TAB_CONSOLE);
     s_side_btn[TAB_SYSTEM] = side_btn(rbar, ICON_SERVER, "System", side_cb, (void *)TAB_SYSTEM);
+    s_side_btn[TAB_HISTORY] = side_btn(rbar, ICON_HISTORY, "History", side_cb, (void *)TAB_HISTORY);
+    s_side_btn[TAB_MESH] = side_btn(rbar, ICON_MESH, "Mesh", side_cb, (void *)TAB_MESH);
+    show(s_side_btn[TAB_MESH], s_st.has_bed_mesh);
     show(s_spool_btn, s_st.has_spoolman);
     show(s_cam_btn, s_st.nwebcams > 0);
 
@@ -1185,6 +1550,7 @@ static void refresh(void)
     show(s_side_btn[TAB_MACROS], s_st.nmacros > 0);
     show(s_cam_btn, s_st.nwebcams > 0);
     show(s_spool_btn, s_st.has_spoolman);
+    show(s_side_btn[TAB_MESH], s_st.has_bed_mesh);
 
     switch (s_tab) {
     case TAB_STATUS: refresh_status(fresh); break;
@@ -1194,6 +1560,9 @@ static void refresh(void)
     case TAB_MACROS: refresh_macros(fresh); break;
     case TAB_CONSOLE: refresh_console(fresh); break;
     case TAB_SYSTEM: refresh_system(fresh); break;
+    case TAB_TUNE: refresh_tune(fresh); break;
+    case TAB_HISTORY: refresh_history(fresh); break;
+    case TAB_MESH: refresh_mesh(fresh); break;
     default: break;
     }
 }
@@ -1202,6 +1571,9 @@ static void destroy(void)
 {
     machine_stop();
     if (s_con) { heap_caps_free(s_con); s_con = NULL; }
+    if (s_hist) { heap_caps_free(s_hist); s_hist = NULL; }
+    if (s_mesh) { heap_caps_free(s_mesh); s_mesh = NULL; }
+    if (s_cam_menu) { lv_obj_delete(s_cam_menu); s_cam_menu = NULL; }
     if (s_tab == TAB_STATUS && W.thumb) lv_image_set_src(W.thumb, NULL);
     ui_thumb_free(&W.th);
     printers_set_focus(-1);   /* back to slow, light polling */

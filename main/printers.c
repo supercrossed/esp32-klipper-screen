@@ -44,6 +44,10 @@ static volatile int s_focus_slot = -1;
 static char s_result[160];
 static volatile bool s_result_new;
 
+#define ALERT_Q 8
+static job_alert_t s_alerts[ALERT_Q];
+static int s_alert_head, s_alert_n;
+
 #define LOCK()   xSemaphoreTake(s_mtx, portMAX_DELAY)
 #define UNLOCK() xSemaphoreGive(s_mtx)
 
@@ -168,7 +172,9 @@ typedef struct {
     int nheaters;
     char macros[MAX_MACROS][40];
     int nmacros;
-    bool has_qgl, has_ztilt, has_bed_mesh;
+    bool has_qgl, has_ztilt, has_bed_mesh, has_fan;
+    printer_status_t last_status;   /* for job-end alerts */
+    bool status_known;
 } poll_ctx_t;
 
 static int get_json(poll_ctx_t *c, const char *path, cJSON **out, int timeout_ms)
@@ -261,12 +267,13 @@ static bool discover_objects(poll_ctx_t *c)
     q_append(&q, &cap, "virtual_sdcard", "progress,is_active,file_position");
     q_append(&q, &cap, "display_status", "progress,message");
     q_append(&q, &cap, "toolhead", "homed_axes,position,extruder");
-    q_append(&q, &cap, "gcode_move", "speed_factor,extrude_factor");
+    q_append(&q, &cap, "gcode_move", "speed_factor,extrude_factor,homing_origin");
     q_append(&q, &cap, "idle_timeout", "state");
 
     c->nheaters = 0;
     c->nmacros = 0;
     c->has_qgl = c->has_ztilt = c->has_bed_mesh = false;
+    c->has_fan = false;
     c->nafc_lanes = 0;
     c->mmu = MMU_NONE;
     bool has_fan = false;
@@ -312,7 +319,7 @@ static bool discover_objects(poll_ctx_t *c)
                                   "gate_status,gate_material,gate_color,gate_filament_name,ttg_map,unit,is_homed");
         }
     }
-    (void)has_fan;
+    c->has_fan = has_fan;
     qsort(c->heaters, c->nheaters, sizeof(heater_t), heater_cmp);
     qsort(c->macros, c->nmacros, sizeof(c->macros[0]), (int (*)(const void *, const void *))strcasecmp);
     cJSON_Delete(j);
@@ -614,6 +621,7 @@ static void poll_once(poll_ctx_t *c)
         s->has_qgl = c->has_qgl;
         s->has_ztilt = c->has_ztilt;
         s->has_bed_mesh = c->has_bed_mesh;
+        s->has_fan = c->has_fan;
         LOCK();
         c->slot->st.nwebcams = s->nwebcams;
         memcpy(c->slot->st.webcams, s->webcams, sizeof(s->webcams));
@@ -684,6 +692,9 @@ static void poll_once(poll_ctx_t *c)
     const cJSON *gm = cJSON_GetObjectItem(status, "gcode_move");
     s->speed_factor = jnum(gm, "speed_factor", 1);
     s->extrude_factor = jnum(gm, "extrude_factor", 1);
+    const cJSON *ho = cJSON_GetObjectItem(gm, "homing_origin");
+    const cJSON *hz = cJSON_GetArrayItem(ho, 2);
+    if (cJSON_IsNumber(hz)) s->z_offset = hz->valuedouble;
     const cJSON *fan = cJSON_GetObjectItem(status, "fan");
     s->fan_speed = fan ? jnum(fan, "speed", 0) : -1;
     }
@@ -726,6 +737,31 @@ static void poll_once(poll_ctx_t *c)
     }
 
     s->last_ok_us = esp_timer_get_time();
+
+    /* Job finished / failed / cancelled: queue an alert (only on a real transition). */
+    bool was_job = c->status_known && (c->last_status == PS_PRINTING || c->last_status == PS_PAUSED);
+    bool ended = s->status == PS_COMPLETE || s->status == PS_ERROR || s->status == PS_CANCELLED ||
+                 s->status == PS_KLIPPY_DOWN;
+    if (was_job && ended) {
+        LOCK();
+        job_alert_t *a = &s_alerts[(s_alert_head + s_alert_n) % ALERT_Q];
+        if (s_alert_n < ALERT_Q) s_alert_n++;
+        else s_alert_head = (s_alert_head + 1) % ALERT_Q;   /* full: drop the oldest */
+        memset(a, 0, sizeof(*a));
+        a->printer = -1;
+        for (int i = 0; i < s_count; i++) if (&s_slots[s_order[i]] == c->slot) a->printer = i;
+        strlcpy(a->name, c->slot->cfg.name, sizeof(a->name));
+        const char *fn = strrchr(s->filename, '/');
+        strlcpy(a->file, fn ? fn + 1 : s->filename, sizeof(a->file));
+        a->status = s->status;
+        a->duration_s = s->print_duration;
+        strlcpy(a->message, s->message, sizeof(a->message));
+        UNLOCK();
+        ESP_LOGI(TAG, "[%s] job ended: %s", c->slot->cfg.name, printer_status_str(s->status));
+    }
+    c->last_status = s->status;
+    c->status_known = true;
+
     LOCK();
     /* keep fields the poller does not own */
     s->thumb = c->slot->st.thumb;
@@ -985,6 +1021,11 @@ static void cmd_task(void *arg)
         what = job->label;
         timeout = 30000;
         break;
+    case CMD_PRINT_START:
+        url_encode(job->gcode, enc, sizeof(enc), 1);
+        snprintf(path, sizeof(path), "/printer/print/start?filename=%s", enc);
+        what = "Start print";
+        break;
     case CMD_HOST_REBOOT:   strcpy(path, "/machine/reboot"); what = "Host reboot"; break;
     case CMD_HOST_SHUTDOWN: strcpy(path, "/machine/shutdown"); what = "Host shutdown"; break;
     }
@@ -1055,6 +1096,20 @@ void printers_command(int idx, printer_cmd_t cmd, const char *gcode) { submit(id
 void printers_gcode(int idx, const char *gcode, const char *label, bool quiet)
 {
     submit(idx, CMD_GCODE, gcode, label, quiet);
+}
+
+bool printers_pop_alert(job_alert_t *out)
+{
+    bool r = false;
+    LOCK();
+    if (s_alert_n) {
+        *out = s_alerts[s_alert_head];
+        s_alert_head = (s_alert_head + 1) % ALERT_Q;
+        s_alert_n--;
+        r = true;
+    }
+    UNLOCK();
+    return r;
 }
 
 bool printers_last_result(char *out, size_t cap)

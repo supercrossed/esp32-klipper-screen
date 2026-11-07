@@ -105,6 +105,8 @@ typedef struct {
     float    pos[4];
     char     homed[8];
     float    fan_speed;           /* part fan 0..1, -1 if none */
+    float    z_offset;            /* gcode_move.homing_origin Z (babystep total) */
+    bool     has_fan;             /* [fan] configured (M106/M107 work) */
     bool     idle_timeout_printing;
 
     mmu_info_t mmu;
@@ -151,6 +153,7 @@ typedef enum {
     CMD_FIRMWARE_RESTART, CMD_KLIPPER_RESTART,
     /* Moonraker machine API; gcode = service name for the SERVICE_* commands */
     CMD_SERVICE_RESTART, CMD_SERVICE_STOP, CMD_SERVICE_START, CMD_HOST_REBOOT, CMD_HOST_SHUTDOWN,
+    CMD_PRINT_START,   /* gcode = file path relative to gcodes/ */
 } printer_cmd_t;
 
 void printers_command(int idx, printer_cmd_t cmd, const char *gcode);
@@ -160,3 +163,15 @@ void printers_gcode(int idx, const char *gcode, const char *label, bool quiet);
 bool printers_last_result(char *out, size_t cap);
 
 const char *printer_status_str(printer_status_t s);
+
+/* ── job alerts (any printer, open or not) ───────────────────────────── */
+typedef struct {
+    int      printer;        /* visible index at the time */
+    char     name[32];       /* printer nickname */
+    char     file[80];
+    printer_status_t status; /* PS_COMPLETE / PS_ERROR / PS_CANCELLED / PS_KLIPPY_DOWN */
+    float    duration_s;
+    char     message[120];
+} job_alert_t;
+
+bool printers_pop_alert(job_alert_t *out);   /* UI: one alert per call */

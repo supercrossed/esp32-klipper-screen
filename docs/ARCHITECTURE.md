@@ -24,6 +24,9 @@
 | `main/spoolman.c` | Spoolman over Moonraker's proxy |
 | `main/tz.c` | POSIX time-zone table and ip-api.com lookup |
 | `main/updater.c` | GitHub Releases check, HTTPS OTA into the inactive slot, rollback confirmation |
+| `main/files.c` | G-code file list and per-file metadata/thumbnail for the Files page |
+| `main/sound.c` | Alert chimes on the built-in speaker (ES8311), codec started on first use |
+| `main/ui/ui_alert.c` | Job-ended banners (queue filled by the pollers in `printers.c`) |
 | `main/machine.c` | Console history and system services, polled only while those tabs are open |
 | `main/screenshot.c` | On-demand screenshot server (`shot` command) and simulated taps |
 | `main/serial_console.c` | USB-UART debug console |

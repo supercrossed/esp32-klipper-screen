@@ -28,6 +28,10 @@ The **left bar** holds the printer's main sections: Status, Move, Extrude, MMU a
 - When Klipper is in an error or shutdown state, the reason is shown with **Restart** and **Firmware restart** buttons.
 - **Temperatures**: tap a heater to set its target with a numpad and presets. Chamber heaters (`heater_generic`/`temperature_fan`) can be set too; a plain chamber `temperature_sensor` is read-only.
 
+### Tune
+- **Z offset (babystep):** Raise or Lower in 0.005 / 0.01 / 0.025 / 0.05 mm steps, or Reset to 0. When Z is homed the nozzle moves right away (`SET_GCODE_OFFSET … MOVE=1`). It's temporary, so save it in the printer's config to keep it.
+- **Speed** (10–300 %), **Flow** (50–150 %) and **Part fan** (0–100 %) sliders. Each is sent when you let go, and has a reset button. The fan slider only appears when the printer has a `[fan]`.
+
 ### Move
 - Jog step: 0.1 / 1 / 10 / 50 mm. XY pad with a centre **Home XY** button, and a Z column with **Home Z**.
 - Position readout. Axes show orange until they're homed.
@@ -44,6 +48,9 @@ The **left bar** holds the printer's main sections: Status, Move, Extrude, MMU a
 - The **filament path** lights up from the active lane through Hub/Selector → Bowden → Extruder → Nozzle, in the filament's colour.
 - **Lanes** show colour, tool mapping, material, weight, and status. The lane in the toolhead has a green border.
 - Tap a lane to load it (AFC `CHANGE_TOOL LANE=…`, Happy Hare `MMU_CHANGE_TOOL TOOL=…`) or to unload it. **Unload** and, on Happy Hare, **Home MMU** sit in the header. Lane changes are blocked while printing.
+
+### Files
+Tap **Files** in the left menu to open the printer's G-code files, newest first. Pick one to see its picture, print time, filament, layer height and slicer, then tap **Start print**. You'll be asked to confirm, and it won't start while the printer is busy.
 
 ### Macros
 Every `gcode_macro` whose name doesn't start with `_`, sorted. Tap one to run it; each asks for confirmation.
@@ -64,8 +71,14 @@ The printer's recent console, the same one shown in Mainsail or Fluidd, newest f
 
 Everything except *Start* asks for confirmation.
 
+### History (right bar)
+Lifetime totals (jobs, print time, filament) and the last 50 jobs with result, date, duration and filament.
+
+### Mesh (right bar)
+Shown when the printer has `[bed_mesh]`. A colour map of the probed mesh, seen from above with the front at the bottom: blue is low, green is level, red is high. You also get the range, saved profiles (tap to load), **Calibrate** (homes first if needed, and asks before starting) and **Clear**.
+
 ### Camera
-Opens the printer's first webcam (from Moonraker's webcam list) fullscreen. **Tap anywhere to close it.** The bottom strip shows the job status, resolution and frame rate.
+Opens the printer's webcam fullscreen; if it has several, you pick one first. **Tap anywhere to close it.** The bottom strip shows the job status, resolution and frame rate.
 
 ## Settings
 
@@ -75,10 +88,14 @@ The top level is a grid of tiles:
 |---|---|
 | **Network** | Connection details (SSID, IP, gateway, signal, MAC) and **Choose a network** |
 | **Printers** | Edit or remove printers, add one, refresh rates |
-| **Display** | **Light mode** switch, brightness, screen rotation (a rotation change restarts the display) |
+| **Display** | Theme (**Dark / Light / Auto** by sunrise and sunset), accent colour, brightness, screen rotation (a rotation change restarts the display), and **alerts** (banner on/off, sound volume, test sound) |
 | **Time** | Clock and time zone. *Auto* detects it once from your public IP |
 | **Updates** | Installed and latest version, **Check for updates**, **View update** |
 | **Device** | Device name (network hostname), firmware and memory info, Restart, Factory reset |
+
+## Print alerts
+
+When any printer finishes, fails, is cancelled or stops unexpectedly, a banner slides in at the top with an **Open** button that jumps to that printer, plus a chime: rising for finished, low for a problem. It stays until you dismiss it. Several alerts queue up and show one after another. Turn banners or sound off in *Settings → Display → Alerts*.
 
 ## Updates
 

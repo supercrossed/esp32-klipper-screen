@@ -16,6 +16,10 @@ static void defaults(app_settings_t *s)
     s->poll_bg_ms = 3000;
     strcpy(s->tz, "UTC0");
     s->tz_auto = 1;
+    s->theme_mode = 0;
+    s->accent = 0;
+    s->alert_vol = 70;
+    s->alerts = 1;
     strcpy(s->device_name, "KlipperRemote");
 }
 
@@ -42,6 +46,18 @@ void settings_load(void)
     nvs_get_u8(h, "orient", &g_settings.orientation);
     nvs_get_u8(h, "tzauto", &g_settings.tz_auto);
     nvs_get_u8(h, "light", &g_settings.light_mode);
+    nvs_get_u8(h, "thmode", &g_settings.theme_mode);
+    nvs_get_u8(h, "accent", &g_settings.accent);
+    nvs_get_u8(h, "hasloc", &g_settings.has_loc);
+    {
+        size_t l = sizeof(float);
+        nvs_get_blob(h, "lat", &g_settings.lat, &l);
+        l = sizeof(float);
+        nvs_get_blob(h, "lon", &g_settings.lon, &l);
+    }
+    nvs_get_u8(h, "alvol", &g_settings.alert_vol);
+    nvs_get_u8(h, "alerts", &g_settings.alerts);
+    if (g_settings.theme_mode == 0 && g_settings.light_mode) g_settings.theme_mode = 1;   /* from <= v0.3.0 */
     nvs_get_u16(h, "poll", &g_settings.poll_ms);
     nvs_get_u16(h, "pollbg", &g_settings.poll_bg_ms);
     nvs_close(h);
@@ -65,6 +81,13 @@ void settings_save(void)
     nvs_set_u8(h, "orient", g_settings.orientation);
     nvs_set_u8(h, "tzauto", g_settings.tz_auto);
     nvs_set_u8(h, "light", g_settings.light_mode);
+    nvs_set_u8(h, "thmode", g_settings.theme_mode);
+    nvs_set_u8(h, "accent", g_settings.accent);
+    nvs_set_u8(h, "hasloc", g_settings.has_loc);
+    nvs_set_blob(h, "lat", &g_settings.lat, sizeof(float));
+    nvs_set_blob(h, "lon", &g_settings.lon, sizeof(float));
+    nvs_set_u8(h, "alvol", g_settings.alert_vol);
+    nvs_set_u8(h, "alerts", g_settings.alerts);
     nvs_set_u16(h, "poll", g_settings.poll_ms);
     nvs_set_u16(h, "pollbg", g_settings.poll_bg_ms);
     nvs_commit(h);

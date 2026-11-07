@@ -66,3 +66,12 @@
 #define ICON_CONSOLE      "\xF3\xB0\x9E\xB7"   /* mdi-console-line */
 #define ICON_SERVER       "\xF3\xB0\x92\x8B"   /* mdi-server */
 #define ICON_SEND         "\xF3\xB0\x92\x8A"   /* mdi-send */
+#define ICON_FILE         "\xF3\xB0\xA7\xAE"   /* mdi-file-document-outline */
+#define ICON_TUNE         "\xF3\xB1\x95\x82"   /* mdi-tune-variant */
+#define ICON_HISTORY      "\xF3\xB0\x8B\x9A"   /* mdi-history */
+#define ICON_MESH         "\xF3\xB0\x8B\x81"   /* mdi-grid */
+#define ICON_PALETTE      "\xF3\xB0\xB8\x8C"   /* mdi-palette-outline */
+#define ICON_BELL         "\xF3\xB0\x82\x9C"   /* mdi-bell-outline */
+#define ICON_SUN          "\xF3\xB0\x96\x99"   /* mdi-weather-sunny */
+#define ICON_MOON         "\xF3\xB0\x96\x94"   /* mdi-weather-night */
+#define ICON_AUTO         "\xF3\xB0\x94\x8E"   /* mdi-theme-light-dark */

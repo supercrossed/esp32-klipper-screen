@@ -71,7 +71,7 @@ bool tz_autodetect(void)
 {
     esp_http_client_handle_t conn = NULL;
     http_buf_t b = { .max = 4096 };
-    int st = http_request(&conn, HTTP_METHOD_GET, "http://ip-api.com/json/?fields=status,timezone,offset",
+    int st = http_request(&conn, HTTP_METHOD_GET, "http://ip-api.com/json/?fields=status,timezone,offset,lat,lon",
                           NULL, NULL, NULL, 0, &b, 5000);
     http_conn_close(&conn);
     bool ok = false;
@@ -83,12 +83,21 @@ bool tz_autodetect(void)
             char posix[48];
             tz_from_iana(zone->valuestring, off->valueint, posix, sizeof(posix));
             ESP_LOGI(TAG, "detected %s (offset %d) -> %s", zone->valuestring, off->valueint, posix);
-            if (strcmp(posix, g_settings.tz)) {
-                strlcpy(g_settings.tz, posix, sizeof(g_settings.tz));
+            if (g_settings.tz_auto) {   /* a manually chosen zone is left alone */
+                if (strcmp(posix, g_settings.tz)) {
+                    strlcpy(g_settings.tz, posix, sizeof(g_settings.tz));
+                    settings_save();
+                }
+                setenv("TZ", g_settings.tz, 1);
+                tzset();
+            }
+            const cJSON *la = cJSON_GetObjectItem(j, "lat"), *lo = cJSON_GetObjectItem(j, "lon");
+            if (cJSON_IsNumber(la) && cJSON_IsNumber(lo)) {
+                g_settings.lat = la->valuedouble;
+                g_settings.lon = lo->valuedouble;
+                g_settings.has_loc = 1;
                 settings_save();
             }
-            setenv("TZ", g_settings.tz, 1);
-            tzset();
             ok = true;
         }
         cJSON_Delete(j);

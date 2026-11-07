@@ -15,8 +15,11 @@
 #include "wifi_mgr.h"
 #include "printers.h"
 #include "updater.h"
+#include <math.h>
+#include "esp_timer.h"
 
 static const char *TAG = "ui";
+static void theme_tick(void);
 
 /* ── palettes ────────────────────────────────────────────────────────── */
 static const ui_palette_t PAL_DARK = {
@@ -36,6 +39,66 @@ static const ui_palette_t PAL_LIGHT = {
     .err = LV_COLOR_MAKE(0xD6, 0x3A, 0x2F), .hot = LV_COLOR_MAKE(0xE4, 0x5E, 0x22),
 };
 ui_palette_t g_pal;
+
+/* Accent colours: { name, dark-mode shade, light-mode shade } */
+static const struct { const char *name; uint32_t dark, light; } ACCENTS[] = {
+    { "Blue",   0x3BA7F0, 0x1E7FD8 },
+    { "Orange", 0xFF8A3D, 0xD9620B },
+    { "Green",  0x3CCB7F, 0x1E9455 },
+    { "Purple", 0xA78BFA, 0x7C3AED },
+    { "Pink",   0xF472B6, 0xD02670 },
+    { "Teal",   0x2DD4BF, 0x0D8A7E },
+};
+#define NACCENTS (int)(sizeof(ACCENTS) / sizeof(ACCENTS[0]))
+
+int ui_accent_count(void) { return NACCENTS; }
+lv_color_t ui_accent_preview(void)
+{
+    int a = g_settings.accent < NACCENTS ? g_settings.accent : 0;
+    return lv_color_hex(g_settings.light_mode ? ACCENTS[a].light : ACCENTS[a].dark);
+}
+const char *ui_accent_name(int i) { return i >= 0 && i < NACCENTS ? ACCENTS[i].name : ""; }
+
+/* Is the sun up right now? NOAA approximation; 07:00-19:00 local without a location. */
+static bool sun_is_up(void)
+{
+    time_t now = time(NULL);
+    if (now < 1700000000) return false;   /* no clock yet: stay dark */
+    if (!g_settings.has_loc) {
+        struct tm tm;
+        localtime_r(&now, &tm);
+        return tm.tm_hour >= 7 && tm.tm_hour < 19;
+    }
+    struct tm u;
+    gmtime_r(&now, &u);
+    const double pi = 3.14159265358979;
+    double g = 2 * pi / 365.0 * (u.tm_yday + (u.tm_hour - 12) / 24.0);
+    double eqt = 229.18 * (0.000075 + 0.001868 * cos(g) - 0.032077 * sin(g) - 0.014615 * cos(2 * g) - 0.040849 * sin(2 * g));
+    double decl = 0.006918 - 0.399912 * cos(g) + 0.070257 * sin(g) - 0.006758 * cos(2 * g) + 0.000907 * sin(2 * g)
+                - 0.002697 * cos(3 * g) + 0.00148 * sin(3 * g);
+    double lat = g_settings.lat * pi / 180;
+    double x = cos(90.833 * pi / 180) / (cos(lat) * cos(decl)) - tan(lat) * tan(decl);
+    if (x > 1) return false;   /* polar night */
+    if (x < -1) return true;   /* midnight sun */
+    double ha = acos(x) * 180 / pi;
+    double rise = fmod(720 - 4 * (g_settings.lon + ha) - eqt + 2880, 1440);   /* minutes UTC */
+    double set = fmod(720 - 4 * (g_settings.lon - ha) - eqt + 2880, 1440);
+    double m = u.tm_hour * 60 + u.tm_min;
+    return rise < set ? (m >= rise && m < set) : (m >= rise || m < set);
+}
+
+static bool want_light(void)
+{
+    if (g_settings.theme_mode == 2) return sun_is_up();
+    return g_settings.theme_mode == 1;
+}
+
+static void palette_for(bool light)
+{
+    g_pal = light ? PAL_LIGHT : PAL_DARK;
+    int a = g_settings.accent < NACCENTS ? g_settings.accent : 0;
+    g_pal.accent = lv_color_hex(light ? ACCENTS[a].light : ACCENTS[a].dark);
+}
 
 lv_color_t ui_contrast(lv_color_t bg)
 {
@@ -501,6 +564,8 @@ static void tick_cb(lv_timer_t *t)
     }
 
 
+    theme_tick();
+    ui_alert_tick();
     if (s_cur && s_cur->refresh) s_cur->refresh();
 }
 
@@ -535,8 +600,10 @@ void ui_init(lv_display_t *disp)
     s_pages[PAGE_SETTINGS] = &page_settings;
     s_pages[PAGE_WIFI] = &page_wifi;
     s_pages[PAGE_SPOOLMAN] = &page_spoolman;
+    s_pages[PAGE_FILES] = &page_files;
 
-    g_pal = g_settings.light_mode ? PAL_LIGHT : PAL_DARK;
+    g_settings.light_mode = want_light();
+    palette_for(g_settings.light_mode);
     lv_theme_t *th = lv_theme_default_init(disp, COL_ACCENT, COL_WARN, !g_settings.light_mode, FONT_M);
     lv_display_set_theme(disp, th);
     build_shell();
@@ -595,20 +662,39 @@ static void build_shell(void)
     lv_obj_set_scroll_dir(s_content, LV_DIR_VER);
 }
 
-void ui_set_light_mode(bool light)
+/* Tear down the current page and the shell, re-theme, rebuild, re-open the same page. */
+static void rebuild_themed(void)
 {
-    g_settings.light_mode = light;
-    settings_save();
-    /* Tear down the current page and the shell, re-theme, rebuild, re-open the same page. */
+    g_settings.light_mode = want_light();
     kb_close();
     if (s_cur && s_cur->destroy) s_cur->destroy();
     s_cur = NULL;
     lv_obj_clean(lv_screen_active());
-    g_pal = light ? PAL_LIGHT : PAL_DARK;
-    lv_theme_t *th = lv_theme_default_init(s_disp, COL_ACCENT, COL_WARN, !light, FONT_M);
+    palette_for(g_settings.light_mode);
+    lv_theme_t *th = lv_theme_default_init(s_disp, COL_ACCENT, COL_WARN, !g_settings.light_mode, FONT_M);
     lv_display_set_theme(s_disp, th);
     build_shell();
     show_top();
+}
+
+void ui_set_theme(int mode, int accent)
+{
+    if (mode >= 0) g_settings.theme_mode = mode;
+    if (accent >= 0 && accent < NACCENTS) g_settings.accent = accent;
+    settings_save();
+    rebuild_themed();
+}
+
+void ui_set_light_mode(bool light) { ui_set_theme(light ? 1 : 0, -1); }
+
+/* Auto mode: follow sunrise/sunset (checked once a minute, never mid-typing). */
+static void theme_tick(void)
+{
+    static int64_t last;
+    int64_t now = esp_timer_get_time();
+    if (now - last < 60LL * 1000000) return;
+    last = now;
+    if (g_settings.theme_mode == 2 && !s_kb && want_light() != (bool)g_settings.light_mode) rebuild_themed();
 }
 
 void ui_set_text(lv_obj_t *lbl, const char *txt)
