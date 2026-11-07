@@ -1226,18 +1226,25 @@ static void refresh_history(bool fresh)
         bool running = !strcmp(h->status, "in_progress");
         lv_color_t col = ok ? COL_OK : cancel ? COL_MUTED : running ? COL_ACCENT : COL_ERR;
         lv_obj_t *r = lv_obj_create(W.hist_list);
-        lv_obj_set_size(r, LV_PCT(100), 72);
+        lv_obj_set_size(r, LV_PCT(100), LV_SIZE_CONTENT);
+        lv_obj_set_style_min_height(r, 68, 0);
         lv_obj_set_style_bg_color(r, COL_CARD2, 0);
         lv_obj_set_style_border_width(r, 0, 0);
         lv_obj_set_style_radius(r, 12, 0);
         lv_obj_set_style_pad_hor(r, 14, 0);
+        lv_obj_set_style_pad_ver(r, 10, 0);
+        lv_obj_set_style_pad_gap(r, 14, 0);
+        lv_obj_set_flex_flow(r, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(r, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_remove_flag(r, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_t *ic = ui_label(r, FONT_XL, col, ok ? ICON_CHECK : cancel ? ICON_CANCEL : running ? ICON_PLAY : ICON_ALERT);
-        lv_obj_align(ic, LV_ALIGN_LEFT_MID, 0, 0);
-        lv_obj_t *l1 = ui_label(r, FONT_M, COL_TEXT, h->file);
+        ui_label(r, FONT_XL, col, ok ? ICON_CHECK : cancel ? ICON_CANCEL : running ? ICON_PLAY : ICON_ALERT);
+        lv_obj_t *tc = plain(r, LV_FLEX_FLOW_COLUMN);   /* file name above details */
+        lv_obj_set_width(tc, 1);
+        lv_obj_set_flex_grow(tc, 1);
+        lv_obj_set_style_pad_gap(tc, 4, 0);
+        lv_obj_t *l1 = ui_label(tc, FONT_M, COL_TEXT, h->file);
         lv_label_set_long_mode(l1, LV_LABEL_LONG_DOT);
-        lv_obj_set_width(l1, LV_PCT(85));
-        lv_obj_align(l1, LV_ALIGN_TOP_LEFT, 50, 6);
+        lv_obj_set_width(l1, LV_PCT(100));
         char d[32], dur[24];
         time_t t = (time_t)h->start;
         struct tm tm;
@@ -1246,10 +1253,9 @@ static void refresh_history(bool fresh)
         ui_fmt_duration(dur, sizeof(dur), h->print_s);
         snprintf(b, sizeof(b), "%s  -  %s  -  %.2f m  -  %s", d, dur, h->filament_mm / 1000,
                  ok ? "Completed" : cancel ? "Cancelled" : running ? "Printing" : h->status);
-        lv_obj_t *l2 = ui_label(r, FONT_S, COL_MUTED, b);
+        lv_obj_t *l2 = ui_label(tc, FONT_S, COL_MUTED, b);
         lv_label_set_long_mode(l2, LV_LABEL_LONG_DOT);
-        lv_obj_set_width(l2, LV_PCT(85));
-        lv_obj_align(l2, LV_ALIGN_BOTTOM_LEFT, 50, -6);
+        lv_obj_set_width(l2, LV_PCT(100));
     }
     if (!n) ui_label(W.hist_list, FONT_M, COL_MUTED, "No print history yet.");
 }

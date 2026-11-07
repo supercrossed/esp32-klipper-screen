@@ -2,6 +2,12 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
+## [0.4.1] - 2026-11-07
+
+### Fixed
+- Files: the file name no longer overlaps the date and size underneath it.
+- History: same fix for the job list.
+
 ## [0.4.0] - 2026-11-07
 
 ### Added
@@ -74,6 +80,7 @@ First public release.
 - USB serial console for headless setup and debugging.
 - Web installer (GitHub Pages) and CI release builds.
 
+[0.4.1]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.1
 [0.4.0]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.0
 [0.3.0]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.3.0
 [0.2.0]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.2.0

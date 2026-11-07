@@ -180,20 +180,25 @@ static void build_rows(void)
     for (int i = 0; i < s_n; i++) {
         const gfile_t *f = &s_list[i];
         lv_obj_t *r = lv_obj_create(s_rows);
-        lv_obj_set_size(r, LV_PCT(100), 78);
+        lv_obj_set_size(r, LV_PCT(100), LV_SIZE_CONTENT);
+        lv_obj_set_style_min_height(r, 72, 0);
         lv_obj_set_style_bg_color(r, COL_CARD2, 0);
         lv_obj_set_style_bg_color(r, COL_BORDER, LV_STATE_PRESSED);
         lv_obj_set_style_border_width(r, 3, 0);
         lv_obj_set_style_border_color(r, i == s_sel ? COL_ACCENT : COL_CARD2, 0);
         lv_obj_set_style_radius(r, 12, 0);
         lv_obj_set_style_pad_hor(r, 14, 0);
+        lv_obj_set_style_pad_ver(r, 10, 0);
+        lv_obj_set_style_pad_gap(r, 4, 0);
+        lv_obj_set_flex_flow(r, LV_FLEX_FLOW_COLUMN);   /* name above details: never overlapping */
+        lv_obj_set_flex_align(r, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
         lv_obj_remove_flag(r, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(r, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(r, row_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
         lv_obj_t *l1 = ui_label(r, FONT_M, COL_TEXT, base_name(f->path));
         lv_label_set_long_mode(l1, LV_LABEL_LONG_DOT);
         lv_obj_set_width(l1, LV_PCT(100));
-        lv_obj_align(l1, LV_ALIGN_TOP_LEFT, 0, 4);
+        lv_obj_remove_flag(l1, LV_OBJ_FLAG_CLICKABLE);
         char d[48], sz[16], t[120];
         fmt_date(f->modified, d, sizeof(d));
         fmt_size(f->size, sz, sizeof(sz));
@@ -208,7 +213,7 @@ static void build_rows(void)
         lv_obj_t *l2 = ui_label(r, FONT_S, COL_MUTED, t);
         lv_label_set_long_mode(l2, LV_LABEL_LONG_DOT);
         lv_obj_set_width(l2, LV_PCT(100));
-        lv_obj_align(l2, LV_ALIGN_BOTTOM_LEFT, 0, -4);
+        lv_obj_remove_flag(l2, LV_OBJ_FLAG_CLICKABLE);
     }
     if (!s_n) ui_label(s_rows, FONT_M, COL_MUTED, "No G-code files on this printer.");
 }
