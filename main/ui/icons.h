@@ -61,3 +61,5 @@
 #define ICON_SPOOL        "\xF3\xB0\xB6\x98"   /* mdi-rotate-orbit */
 #define ICON_POWER        "\xF3\xB0\x90\xA5"   /* mdi-power */
 #define ICON_LIST         "\xF3\xB0\x89\xB9"   /* mdi-format-list-bulleted */
+#define ICON_UPDATE       "\xF3\xB0\xAD\xBD"   /* mdi-cloud-download-outline */
+#define ICON_NEW          "\xF3\xB0\x8E\x94"   /* mdi-new-box */

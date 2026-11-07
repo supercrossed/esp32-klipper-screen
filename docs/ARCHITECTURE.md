@@ -23,6 +23,8 @@
 | `main/webcam.c` | Snapshot loop → hardware JPEG decode → PPA scale/rotate/mirror → triple buffer |
 | `main/spoolman.c` | Spoolman over Moonraker's proxy |
 | `main/tz.c` | POSIX time-zone table and ip-api.com lookup |
+| `main/updater.c` | GitHub Releases check, HTTPS OTA into the inactive slot, rollback confirmation |
+| `main/screenshot.c` | On-demand screenshot server (`shot` command) and simulated taps |
 | `main/serial_console.c` | USB-UART debug console |
 | `main/lv_mem_psram.c` | LVGL allocator in PSRAM |
 | `main/ui/ui.c` | Shell (header + content), navigation stack, palette/theme, fonts, keyboard, dialogs |
@@ -65,6 +67,10 @@ Each printer's poller:
 4. When the file changes: `/server/files/metadata` and the thumbnail PNG.
 
 The interval comes from Settings (1 s focused, 3 s background). A command or focus change wakes the poller early through a task notification.
+
+## Updates
+
+`updater.c` checks `api.github.com/repos/<repo>/releases/latest` a minute after boot and every 6 hours, on a short-lived task. It compares the tag with the running `PROJECT_VER`, turns the release body (above the `---` divider) into plain text, and records the URL of the `esp32-klipper-screen-app.bin` asset. Installing runs `esp_https_ota` into the inactive slot on an internal-stack task, because it writes flash. On its first boot the new image marks itself valid after a minute; if it crashes before that, the bootloader rolls back.
 
 ## Display & touch
 

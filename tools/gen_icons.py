@@ -79,6 +79,8 @@ ICONS = {
     "SPOOL":        "rotate-orbit",
     "POWER":        "power",
     "LIST":         "format-list-bulleted",
+    "UPDATE":       "cloud-download-outline",
+    "NEW":          "new-box",
 }
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

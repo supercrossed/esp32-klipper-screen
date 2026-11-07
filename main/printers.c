@@ -198,7 +198,8 @@ static const char *heater_kind_label(const char *obj, uint8_t *kind, char *label
         strlcpy(label, "Bed", cap);
     } else {
         *kind = strstr(obj, "chamber") ? 2 : 3;
-        strlcpy(label, *kind == 2 ? "Chamber" : nm, cap);
+        if (*kind == 2) strlcpy(label, strncmp(obj, "temperature_sensor ", 19) ? "Chamber heater" : "Chamber", cap);
+        else strlcpy(label, nm, cap);
         if (label[0] >= 'a' && label[0] <= 'z') label[0] -= 32;
     }
     return label;

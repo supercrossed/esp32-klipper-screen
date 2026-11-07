@@ -2,6 +2,21 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
+## [0.2.0] - 2026-11-07
+
+### Added
+- **Built-in updates.** The display checks for new versions by itself. When one is out, a green **Update** button appears at the top of the screen. Tap it to read what's new and install. You can also check by hand in Settings → Updates.
+- If an update ever fails to start properly, the display goes back to the previous version on its own.
+- Updates tile in Settings with the installed and latest version.
+
+### Changed
+- Printer tiles on the home screen have a cleaner, consistent layout: same spacing on every tile, temperatures in three even columns, and small matching icons for MMU, Spoolman and camera.
+- Chamber heaters and chamber sensors now have different names.
+- Tidier filament-path graphic on the MMU page.
+
+### Upgrading from 0.1.0
+Version 0.1.0 can't update itself. Install 0.2.0 once with the [web installer](https://supercrossed.github.io/esp32-klipper-screen/) (leave *Erase device* unticked to keep your printers and Wi-Fi). Every later version installs from the screen.
+
 ## [0.1.0] - 2026-11-07
 
 First public release.
@@ -23,4 +38,5 @@ First public release.
 - USB serial console for headless setup and debugging.
 - Web installer (GitHub Pages) and CI release builds.
 
+[0.2.0]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.2.0
 [0.1.0]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.1.0

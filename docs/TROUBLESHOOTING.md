@@ -18,6 +18,12 @@
 - **"JPEG decode failed (progressive?)".** The P4's hardware decoder needs baseline JPEG. ustreamer and mjpg-streamer produce baseline by default.
 - **Low frame rate.** Lower the camera resolution in crowsnest; 720p is a good balance.
 
+## Updates
+
+- **"Couldn't reach GitHub".** The display needs internet access (HTTPS to `api.github.com` and `github.com`). Check that your network allows it.
+- **"Download interrupted - nothing was changed".** The Wi-Fi dropped during the download. The old version is still installed; try again.
+- **The display restarted on the old version after an update.** The new version didn't start properly, so it rolled back automatically. Please open an issue with a serial log.
+
 ## Display
 
 - **Touch is offset or mirrored after changing orientation.** Report it with the orientation you used. The swap/mirror flags for each orientation are in `main/main.c`.
@@ -37,6 +43,10 @@ Connect at **115200 baud** to the board's USB-UART, for example with `idf.py -p 
 | `scan` | Run network discovery and print the results |
 | `focus <idx>` | Poll printer `idx` fast (as if it were open) |
 | `page <id> [arg]` | Navigate the UI: 0 home, 1 printer(arg=idx), 2 webcam(arg=idx·16), 3 add, 4 settings, 5 Wi-Fi, 6 Spoolman(arg=idx) |
+| `upd check` / `upd install` / `upd status` | Check for updates, install the available one, show updater state |
+| `shot` | Start the screenshot server (`http://<ip>:8080/screenshot.bmp`) |
+| `tap <x> <y>` | Simulate a tap |
+| `theme light` / `theme dark` | Switch the theme |
 | `reboot` | Restart |
 
 When reporting a crash, include the lines after `Guru Meditation` or `assert failed`, and the output of `status`.

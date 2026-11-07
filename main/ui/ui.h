@@ -87,4 +87,5 @@ lv_color_t  ui_status_color(int printer_status);
 void        ui_fmt_duration(char *out, size_t cap, float seconds);
 void        ui_apply_brightness(void);
 void        ui_set_text(lv_obj_t *lbl, const char *txt);   /* only redraws on change */
+void        ui_update_dialog(void);                        /* release notes + confirm (when an update is available) */
 void        ui_keyboard_setup(lv_obj_t *kb);               /* custom layouts (USER_1 = IP numpad) */

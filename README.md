@@ -1,81 +1,78 @@
 # ESP32 Klipper Screen
 
-A portable touchscreen controller for **several Klipper printers at once**, running on a
-[Waveshare ESP32-P4-WIFI6-Touch-LCD-5](https://www.waveshare.com/esp32-p4-wifi6-touch-lcd-5.htm).
-It works like a small, wireless [KlipperScreen](https://github.com/KlipperScreen/KlipperScreen): pick up the screen, walk around the shop, and check or control any printer on your network.
+A small wireless touchscreen that controls **all of your Klipper printers** from one place.
+Carry it around the workshop, glance at what every machine is doing, and tap into any printer to control it.
 
-Everything comes from each printer's **Moonraker** API. Nothing needs to be installed on the printers.
+It runs on the [Waveshare ESP32-P4 5″ touch display](https://www.waveshare.com/esp32-p4-wifi6-touch-lcd-5.htm). Nothing needs to be installed on your printers.
 
-[![Build](https://github.com/supercrossed/esp32-klipper-screen/actions/workflows/build.yml/badge.svg)](https://github.com/supercrossed/esp32-klipper-screen/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/supercrossed/esp32-klipper-screen)](https://github.com/supercrossed/esp32-klipper-screen/releases/latest)
+[![Build](https://github.com/supercrossed/esp32-klipper-screen/actions/workflows/build.yml/badge.svg)](https://github.com/supercrossed/esp32-klipper-screen/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**[Install from your browser](https://supercrossed.github.io/esp32-klipper-screen/)** · [Releases](https://github.com/supercrossed/esp32-klipper-screen/releases) · [Docs](docs/)
+### **[→ Install it from your browser](https://supercrossed.github.io/esp32-klipper-screen/)**
 
----
+![Home screen](docs/images/home.png)
 
-## Features
+## What it does
 
-- **Several printers**: the home screen has a tile for each printer, showing its nickname, status, progress, time left and ETA, temperatures, and the print thumbnail. Long-press a tile to rename it.
-- **Per-printer pages**, chosen from a sidebar:
-  - **Status**: job progress with elapsed, remaining and ETA, layer, filament, and speed. Tap a temperature to set it. Pause, resume, cancel, home, motors off, heaters off, and **emergency stop**.
-  - **Move**: XY/Z jog (0.1 to 50 mm), home all or one axis, quad gantry level or Z-tilt when the printer has it.
-  - **Extrude**: preheat presets, extrude/retract with length and speed, and load/unload filament macros.
-  - **MMU**: [AFC](https://github.com/ArmoredTurtle/AFC-Klipper-Add-On) and [Happy Hare](https://github.com/moggieuk/Happy-Hare) lanes with colour, material, weight, and what's loaded. A filament-path graphic shows where the filament is: lane, hub/selector, bowden, extruder, nozzle.
-  - **Macros**: your `gcode_macro`s as buttons.
-  - **Spools**: a [Spoolman](https://github.com/Donkie/Spoolman) browser. View spools and filaments, show a spool's **QR code** for a 2D scanner, and set the active spool.
-  - **Camera**: a fullscreen webcam view, decoded by the P4's hardware JPEG engine.
-- **Add printers** by searching the network (mDNS plus a subnet scan on ports 7125–7127 and 80) or by typing an IP.
-- **Setup on the device**: Wi-Fi setup on first boot, an on-screen keyboard and IP numpad, light/dark mode, brightness, four screen orientations, NTP time with automatic time zone.
-- **Designed to run all day**: no screen sleep, no Wi-Fi power save. Pages you leave free their memory, and only the printer on screen is polled quickly.
+- **All your printers on one screen.** See what each one is printing, how far along it is, when it'll finish, and its temperatures.
+- **Give printers nicknames** so you know which is which.
+- **Add printers easily.** Search your network, or type in the address.
+- **Control a printer.** Pause, resume or cancel prints, set temperatures, home and move the axes, extrude filament, run your macros, or hit the emergency stop.
+- **Watch the camera** full screen.
+- **Multi-material support** for AFC (Box Turtle) and Happy Hare. See which filament is in each lane and where the loaded one is.
+- **Spoolman support.** Browse your spools and filaments, pick the active spool, and show a spool's QR code to scan.
+- **Updates itself.** When a new version is out, an *Update* button appears. One tap installs it.
+- **Light and dark mode.** It also connects to Wi-Fi on first start, keeps the time, and works in landscape or portrait.
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Printer status](docs/images/printer-status.png) | ![Move](docs/images/printer-move.png) |
+| **Printer status**: progress, temperatures, quick controls | **Move**: jog and home the axes |
+| ![Extrude](docs/images/printer-extrude.png) | ![Macros](docs/images/printer-macros.png) |
+| **Extrude**: heat up and feed filament | **Macros**: your printer's macros as buttons |
+| ![AFC](docs/images/mmu-afc.png) | ![Happy Hare](docs/images/mmu-happy-hare.png) |
+| **Multi-material (AFC)** | **Multi-material (Happy Hare)** |
+| ![Spoolman](docs/images/spoolman.png) | ![Settings](docs/images/settings.png) |
+| **Spoolman** with a scannable spool QR code | **Settings** |
+
+![Light mode](docs/images/home-light.png)
 
 ## Hardware
 
-| | |
-|---|---|
-| Board | Waveshare **ESP32-P4-WIFI6-Touch-LCD-5** (ESP32-P4 rev ≥ 3.0, 32 MB PSRAM, 32 MB flash) |
-| Display | 5″ 720×1280 MIPI-DSI (HX8394), GT911 capacitive touch, used in landscape by default |
-| Wi-Fi | Onboard ESP32-C6 (Wi-Fi 6) over SDIO, using **Waveshare's factory C6 firmware unchanged** |
-| Printers | Klipper + Moonraker. Mainsail or Fluidd are optional |
+ESP32 Klipper Screen runs on the **Waveshare ESP32-P4-WIFI6-Touch-LCD-5**, an all-in-one board with a 5″ touchscreen and built-in Wi-Fi. No soldering or extra parts are needed, just a USB-C cable.
 
-## Install
+- [Waveshare product page](https://www.waveshare.com/esp32-p4-wifi6-touch-lcd-5.htm)
+- [Buy on Amazon](https://www.amazon.com/s?k=esp32+p4+5+inch&crid=1VNTQAY3AYSG2&sprefix=esp32+p4+5+inch%2Caps%2C187&ref=nb_sb_noss_1)
 
-The quickest way is the **[web installer](https://supercrossed.github.io/esp32-klipper-screen/)**. Plug the board into USB, open the page in Chrome or Edge, and click *Install*.
+Your printers need **Klipper** with **Moonraker**, which comes with Mainsail, Fluidd and most Klipper setups.
 
-You can also flash a release binary with esptool:
+**Building your own?** A DIY version with a separate ESP32-P4 board, a display and a small Wi-Fi chip is planned. A setup guide and installer for it will be added to the docs.
 
-```bash
-pip install esptool
-esptool --chip esp32p4 -p <PORT> -b 921600 write_flash 0x0 esp32-klipper-screen-<version>.bin
-```
+## Getting started
 
-See **[docs/INSTALL.md](docs/INSTALL.md)** for details and the first-boot walkthrough.
+1. Open the **[web installer](https://supercrossed.github.io/esp32-klipper-screen/)** in Chrome or Edge, plug in the display, and click **Install**.
+2. On the display, pick your Wi-Fi network and enter the password.
+3. Tap **Add printer**, then **Start search**, and add your printers.
 
-## Documentation
+That's it. Future updates install from the screen.
 
-| | |
-|---|---|
-| [Install & first boot](docs/INSTALL.md) | Flashing, Wi-Fi setup, adding printers |
-| [Using it](docs/USAGE.md) | A tour of every screen |
-| [Moonraker setup](docs/MOONRAKER.md) | Webcams, Spoolman, API keys, MMU, what the display requests |
-| [Building from source](docs/BUILDING.md) | ESP-IDF 5.5.6 toolchain, build and flash, regenerating icons |
-| [Architecture](docs/ARCHITECTURE.md) | Tasks, memory rules, how polling works |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | Wi-Fi, discovery, webcam, serial console |
-| [Changelog](CHANGELOG.md) | Release history |
+More detail is in the [install guide](docs/INSTALL.md).
 
-## Building
+## More information
 
-```bash
-# ESP-IDF v5.5.6 (v5.5.0 cannot build for ESP32-P4 rev 3.x)
-idf.py set-target esp32p4
-idf.py build
-idf.py -p <PORT> flash monitor
-```
+- [Install guide](docs/INSTALL.md)
+- [How to use it](docs/USAGE.md)
+- [Printer setup tips](docs/MOONRAKER.md): webcams, Spoolman, multi-material
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Building it yourself](docs/BUILDING.md) and [how it works](docs/ARCHITECTURE.md)
+- [What's new](CHANGELOG.md)
 
-Full instructions are in [docs/BUILDING.md](docs/BUILDING.md).
+Found a bug or have an idea? [Open an issue](https://github.com/supercrossed/esp32-klipper-screen/issues).
 
-## Licence
+## License
 
-The project is MIT licensed, see [LICENSE](LICENSE). Icons are [Material Design Icons](https://pictogrammers.com/library/mdi/) (Apache-2.0). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for all bundled components and the network services the firmware uses.
-
-This is an independent project. It isn't affiliated with Klipper, KlipperScreen, Moonraker, Mainsail, Fluidd, Spoolman, AFC, Happy Hare or Waveshare.
+[MIT](LICENSE). Icons are from [Material Design Icons](https://pictogrammers.com/library/mdi/). See [third-party notices](THIRD_PARTY_NOTICES.md).
+This is a community project and isn't affiliated with Klipper, Moonraker, Mainsail, Fluidd, Spoolman, AFC, Happy Hare or Waveshare.

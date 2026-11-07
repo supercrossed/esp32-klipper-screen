@@ -14,6 +14,7 @@
 #include "app_settings.h"
 #include "wifi_mgr.h"
 #include "printers.h"
+#include "updater.h"
 
 static const char *TAG = "ui";
 
@@ -73,7 +74,7 @@ static int s_depth;
 static const ui_page_t *s_cur;
 
 static lv_display_t *s_disp;
-static lv_obj_t *s_header, *s_content, *s_back_btn, *s_title, *s_wifi_lbl, *s_clock_lbl;
+static lv_obj_t *s_header, *s_content, *s_back_btn, *s_title, *s_wifi_lbl, *s_clock_lbl, *s_upd_btn;
 static lv_obj_t *s_kb, *s_kb_ta;
 
 /* ── geometry ────────────────────────────────────────────────────────── */
@@ -483,6 +484,13 @@ static void tick_cb(lv_timer_t *t)
     char res[160];
     if (printers_last_result(res, sizeof(res))) ui_toast(res);
 
+    /* green "Update" in the top bar whenever a newer release is known */
+    bool upd = updater_state() == UPD_AVAILABLE;
+    if (upd == lv_obj_has_flag(s_upd_btn, LV_OBJ_FLAG_HIDDEN)) {
+        if (upd) lv_obj_remove_flag(s_upd_btn, LV_OBJ_FLAG_HIDDEN);
+        else lv_obj_add_flag(s_upd_btn, LV_OBJ_FLAG_HIDDEN);
+    }
+
 
     if (s_cur && s_cur->refresh) s_cur->refresh();
 }
@@ -505,6 +513,7 @@ static lv_obj_t *hdr_btn(const char *sym, lv_event_cb_t cb)
 }
 
 static void build_shell(void);
+static void upd_btn_cb(lv_event_t *e) { ui_update_dialog(); }
 
 void ui_init(lv_display_t *disp)
 {
@@ -558,6 +567,10 @@ static void build_shell(void)
     s_title = ui_label(s_header, FONT_L, COL_TEXT, "");
     lv_label_set_long_mode(s_title, LV_LABEL_LONG_DOT);
     lv_obj_set_flex_grow(s_title, 1);
+    s_upd_btn = ui_button(s_header, ICON_UPDATE, "Update", COL_OK, upd_btn_cb, NULL);
+    lv_obj_set_style_min_height(s_upd_btn, 52, 0);
+    lv_obj_set_style_pad_ver(s_upd_btn, 8, 0);
+    lv_obj_add_flag(s_upd_btn, LV_OBJ_FLAG_HIDDEN);
     s_wifi_lbl = ui_label(s_header, FONT_L, COL_MUTED, "");
     s_clock_lbl = ui_label(s_header, FONT_L, COL_TEXT, "--:--");
     hdr_btn(ICON_SETTINGS, settings_cb);

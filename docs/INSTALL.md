@@ -30,7 +30,7 @@ The single `.bin` image is meant for **fresh installs**: it covers flash from `0
 Each release also includes the separate images. Use them to update without losing settings:
 
 ```bash
-esptool --chip esp32p4 -p COM18 -b 921600 write_flash   0x2000 bootloader.bin 0x8000 partition-table.bin 0x20000 esp32-klipper-screen-app.bin
+esptool --chip esp32p4 -p COM18 -b 921600 write_flash 0x2000 bootloader.bin 0x8000 partition-table.bin 0x19000 ota_data_initial.bin 0x20000 esp32-klipper-screen-app.bin
 ```
 
 ## Option 3: build it yourself
@@ -49,7 +49,12 @@ Settings, printers and Wi-Fi are stored in flash and survive reboots and firmwar
 
 ## Updating
 
-- **Web installer:** run it again and leave *Erase device* unticked.
-- **esptool:** flash the three separate images (above), not the merged one.
+From **v0.2.0** on, the display updates itself:
 
-Either way, the settings partition (NVS at `0x9000`) is left alone, so Wi-Fi and printers stay. If a release changes the partition layout, its release notes will say so.
+- It checks GitHub for a new release a minute after starting, then every 6 hours. When there's one, a green **Update** button appears at the top of the screen.
+- Tap it (or go to **Settings → Updates**) to read the release notes, then tap **Update now**. The download takes about a minute, then the display restarts on the new version. Your settings and printers are kept.
+- If a new version fails to start properly, the display goes back to the previous version by itself on the next restart.
+
+**Coming from v0.1.0?** It has no updater, so install v0.2.0 once with the web installer, leaving *Erase device* unticked.
+
+You can still update by hand: run the web installer again with *Erase device* unticked, or flash the four separate images with esptool (above). Both leave the settings partition (NVS at `0x9000`) alone.

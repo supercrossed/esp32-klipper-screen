@@ -30,6 +30,19 @@ To produce the single image used for releases:
 idf.py merge-bin -o merged.bin   # -> build/merged.bin, flash at 0x0
 ```
 
+## Flash layout
+
+| Partition | Offset | Size | |
+|---|---|---|---|
+| nvs | `0x9000` | 64 KB | settings and printers (kept across updates) |
+| otadata | `0x19000` | 8 KB | which app slot boots |
+| phy_init | `0x1b000` | 4 KB | |
+| ota_0 | `0x20000` | 6 MB | app slot A |
+| ota_1 | `0x620000` | 6 MB | app slot B |
+| storage | `0xc20000` | ~4 MB | spare |
+
+Updates download into the inactive slot. `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE` makes the bootloader return to the previous slot if a new image doesn't confirm itself within a minute of starting (`updater.c`).
+
 ## Configuration notes
 
 `sdkconfig` is generated and not committed; **edit `sdkconfig.defaults`**. Changing `sdkconfig.defaults` doesn't update an existing `sdkconfig`. Delete `sdkconfig` (or run `idf.py fullclean`) and rebuild, then grep `sdkconfig` to confirm the setting took effect.
@@ -45,6 +58,9 @@ Settings that matter, and why:
 | `LWIP_MAX_SOCKETS=48`, `LWIP_MAX_ACTIVE_TCP=48`, `LWIP_SO_LINGER` | network discovery |
 | `LV_USE_TINY_TTF`, `LV_USE_QRCODE`, `LV_USE_LODEPNG` | icons, Spoolman QR codes, print thumbnails |
 | `esp_hosted 1.4.*`, `esp_wifi_remote 0.14.*` (in `main/idf_component.yml`) | match Waveshare's factory C6 firmware |
+| `ESP_HTTP_CLIENT_ENABLE_HTTPS`, `MBEDTLS_EXTERNAL_MEM_ALLOC`, `MBEDTLS_DYNAMIC_BUFFER` | HTTPS to GitHub for updates, with TLS buffers in PSRAM |
+| `BOOTLOADER_APP_ROLLBACK_ENABLE` | automatic rollback of a bad update |
+| `LV_USE_SNAPSHOT` | screenshots (`tools/screenshot.py`) |
 
 **Don't** raise `LWIP_TCP_WND_DEFAULT` / `TCP_SND_BUF` to 64 KB. Under webcam load, esp_hosted runs out of internal DMA memory and asserts (`transport_drv_sta_tx … copy_buff`).
 
@@ -59,9 +75,13 @@ Icons are glyphs from the [Material Design Icons](https://pictogrammers.com/libr
 
 ## Releasing
 
-1. Bump `PROJECT_VER` in the top-level `CMakeLists.txt` and add a section to `CHANGELOG.md`.
+1. Bump `PROJECT_VER` in the top-level `CMakeLists.txt` and add a section to `CHANGELOG.md`. Write it in plain language: that section becomes the release notes, which the display shows in its update dialog.
 2. Commit, then tag and push: `git tag v0.2.0 && git push origin v0.2.0`.
 3. The **Build** workflow builds the firmware, creates the GitHub Release with the binaries attached, and redeploys the web installer on GitHub Pages.
+
+## Screenshots
+
+Run `shot` on the serial console, then `python tools/screenshot.py <display-ip> out.png`. The console's `page`, `tap` and `theme` commands let you set up each screen without touching it.
 
 ## Headless testing
 

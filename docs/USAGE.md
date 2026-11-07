@@ -4,15 +4,16 @@ The screen runs in landscape (1280×720) by default. The top bar shows a **Back*
 
 ## Home
 
-Each printer has a tile showing:
+Each printer has a tile. Every tile has the same layout:
 
-- its nickname and status (Idle, Printing, Paused, Complete, Error, Offline, Klipper not ready);
-- the Moonraker hostname and IP;
-- the current file, a progress bar, the percentage, time left and ETA, and the slicer thumbnail;
-- hotend, bed and chamber temperatures (orange while heating);
-- badges for MMU, Spoolman and webcam.
+1. **Name and status**: Idle, Printing, Paused, Complete, Error, Offline or Klipper not ready.
+2. **Address**, with small icons when the printer has an MMU, Spoolman or a camera.
+3. **Job**: the slicer thumbnail (or a printer icon), file name, progress bar, and time left with ETA.
+4. **Temperatures**: hotend, bed and chamber in three columns, orange while heating and `--` when the printer doesn't have one.
 
-**Tap** a tile to open the printer. **Long-press** it to set a nickname. The last tile is **+ Add printer**. When any printer has Spoolman, a **Spoolman** button appears above the tiles.
+**Tap** a tile to open the printer. **Long-press** it to set a nickname. The last tile is **+ Add printer**. When any printer has Spoolman, a **Spoolman** button appears below the tiles.
+
+When a new version is available, a green **Update** button appears in the top bar (see [Updates](#updates)).
 
 Home tiles refresh every 3 s by default, and the open printer every 1 s. Both can be changed in *Settings → Printers*.
 
@@ -66,7 +67,12 @@ The top level is a grid of tiles:
 | **Printers** | Edit or remove printers, add one, refresh rates |
 | **Display** | **Light mode** switch, brightness, screen rotation (a rotation change restarts the display) |
 | **Time** | Clock and time zone. *Auto* detects it once from your public IP |
+| **Updates** | Installed and latest version, **Check for updates**, **View update** |
 | **Device** | Device name (network hostname), firmware and memory info, Restart, Factory reset |
+
+## Updates
+
+When a newer release is out, tap the green **Update** button, or go to *Settings → Updates → View update*. You'll see what's new and the download size. **Update now** downloads and installs it with a progress bar, then the display restarts. **Later** closes the dialog, and the button stays until you update.
 
 ## Keyboard
 

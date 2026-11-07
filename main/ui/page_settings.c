@@ -17,21 +17,25 @@
 #include "wifi_mgr.h"
 #include "printers.h"
 #include "tz.h"
+#include "updater.h"
 
-enum { SEC_GRID = 0, SEC_NETWORK, SEC_PRINTERS, SEC_DISPLAY, SEC_TIME, SEC_DEVICE, SEC_COUNT };
+enum { SEC_GRID = 0, SEC_NETWORK, SEC_PRINTERS, SEC_DISPLAY, SEC_TIME, SEC_UPDATES, SEC_DEVICE, SEC_COUNT };
 
 static const struct { const char *icon, *title; } SECTIONS[SEC_COUNT] = {
     [SEC_NETWORK]  = { ICON_WIFI,     "Network" },
     [SEC_PRINTERS] = { ICON_PRINTER,  "Printers" },
     [SEC_DISPLAY]  = { ICON_DISPLAY,  "Display" },
     [SEC_TIME]     = { ICON_CLOCK,    "Time" },
+    [SEC_UPDATES]  = { ICON_UPDATE,   "Updates" },
     [SEC_DEVICE]   = { ICON_CHIP,     "Device" },
 };
 
 static int s_sec;
 static int s_tick;
 static lv_obj_t *s_sum[SEC_COUNT];         /* grid tile summaries */
-static lv_obj_t *s_info, *s_time_lbl, *s_name_ta;
+static lv_obj_t *s_info, *s_time_lbl, *s_name_ta, *s_upd_btns;
+static upd_info_t s_upd;   /* static: ~2 KB */
+static int s_upd_shown = -1;
 
 static const uint16_t POLL_OPTS[] = { 500, 1000, 2000 };
 static const uint16_t POLLBG_OPTS[] = { 2000, 3000, 5000, 10000 };
@@ -209,6 +213,12 @@ static void refresh_grid(void)
     ui_set_text(s_sum[SEC_TIME], t);
     snprintf(t, sizeof(t), "%s  -  v%s", g_settings.device_name, esp_app_get_description()->version);
     ui_set_text(s_sum[SEC_DEVICE], t);
+    updater_get(&s_upd);
+    if (s_upd.state == UPD_AVAILABLE) snprintf(t, sizeof(t), "Version %s available", s_upd.latest);
+    else if (s_upd.state == UPD_CHECKING) strcpy(t, "Checking...");
+    else snprintf(t, sizeof(t), "Up to date  -  v%s", s_upd.current);
+    ui_set_text(s_sum[SEC_UPDATES], t);
+    lv_obj_set_style_text_color(s_sum[SEC_UPDATES], s_upd.state == UPD_AVAILABLE ? COL_OK : COL_MUTED, 0);
 }
 
 /* ── sections ────────────────────────────────────────────────────────── */
@@ -298,6 +308,58 @@ static void build_time(lv_obj_t *c)
     lv_obj_set_width(n, LV_PCT(100));
 }
 
+static void check_cb(lv_event_t *e) { updater_check_now(); }
+static void view_upd_cb(lv_event_t *e) { ui_update_dialog(); }
+
+static void build_updates(lv_obj_t *c)
+{
+    lv_obj_t *g = group(c, "FIRMWARE");
+    s_info = ui_label(g, FONT_M, COL_TEXT, "");
+    lv_label_set_long_mode(s_info, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(s_info, LV_PCT(100));
+    s_upd_btns = lv_obj_create(g);
+    lv_obj_set_size(s_upd_btns, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(s_upd_btns, 0, 0);
+    lv_obj_set_style_border_width(s_upd_btns, 0, 0);
+    lv_obj_set_style_pad_all(s_upd_btns, 0, 0);
+    lv_obj_set_style_pad_gap(s_upd_btns, 14, 0);
+    lv_obj_set_flex_flow(s_upd_btns, LV_FLEX_FLOW_COLUMN);
+    lv_obj_remove_flag(s_upd_btns, LV_OBJ_FLAG_SCROLLABLE);
+    s_upd_shown = -1;
+    lv_obj_t *n = ui_label(c, FONT_S, COL_MUTED,
+                           "The display checks GitHub for new releases a minute after starting and every 6 hours. "
+                           "Updates download over Wi-Fi and keep your settings and printers.");
+    lv_label_set_long_mode(n, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(n, LV_PCT(100));
+}
+
+static void refresh_updates(void)
+{
+    updater_get(&s_upd);
+    char t[256], when[40] = "never";
+    if (s_upd.checked_at) {
+        struct tm tm;
+        localtime_r(&s_upd.checked_at, &tm);
+        strftime(when, sizeof(when), "%H:%M, %a %d %b", &tm);
+    }
+    const char *st = s_upd.state == UPD_CHECKING ? "Checking for updates..."
+                   : s_upd.state == UPD_AVAILABLE ? ICON_NEW "  A new version is available"
+                   : s_upd.state == UPD_UP_TO_DATE ? ICON_CHECK "  You're up to date"
+                   : s_upd.state == UPD_INSTALLING ? "Installing..."
+                   : s_upd.state == UPD_ERROR ? s_upd.error : "Not checked yet";
+    snprintf(t, sizeof(t), "Installed version:  %s\nLatest version:  %s\nLast checked:  %s\n\n%s",
+             s_upd.current, s_upd.latest[0] ? s_upd.latest : "-", when, st);
+    ui_set_text(s_info, t);
+    lv_obj_set_style_text_color(s_info, s_upd.state == UPD_ERROR ? COL_ERR : COL_TEXT, 0);
+    int key = s_upd.state == UPD_AVAILABLE ? 1 : 0;
+    if (key != s_upd_shown) {
+        s_upd_shown = key;
+        lv_obj_clean(s_upd_btns);
+        if (key) wide_btn(s_upd_btns, ICON_UPDATE, "View update", COL_OK, view_upd_cb, NULL);
+        wide_btn(s_upd_btns, ICON_RESTART, "Check for updates", COL_CARD2, check_cb, NULL);
+    }
+}
+
 static void build_device(lv_obj_t *c)
 {
     lv_obj_t *g = group(c, "NAME");
@@ -340,15 +402,17 @@ static void create(lv_obj_t *parent, int arg)
     case SEC_PRINTERS: build_printers(c); break;
     case SEC_DISPLAY:  build_display(c); break;
     case SEC_TIME:     build_time(c); break;
+    case SEC_UPDATES:  build_updates(c); refresh_updates(); break;
     case SEC_DEVICE:   build_device(c); break;
     }
 }
 
 static void refresh(void)
 {
-    if (s_tick++ % 4) return;   /* 1 s */
+    if (s_tick++ % 2) return;   /* 2 Hz */
     char t[400];
     if (s_sec == SEC_GRID) { refresh_grid(); return; }
+    if (s_sec == SEC_UPDATES && s_info) { refresh_updates(); return; }
     if (s_sec == SEC_NETWORK && s_info) {
         esp_netif_ip_info_t ip;
         char mac[20];

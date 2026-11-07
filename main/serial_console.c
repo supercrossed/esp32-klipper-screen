@@ -5,6 +5,9 @@
  *   list                       list printers and their state
  *   status                     Wi-Fi + memory
  *   scan                       network discovery
+ *   shot                       start screenshot server (GET :8080/screenshot.bmp)
+ *   tap <x> <y>                simulated tap
+ *   theme light|dark
  *   reboot
  */
 #include <stdio.h>
@@ -17,11 +20,16 @@
 #include "esp_heap_caps.h"
 #include "esp_system.h"
 #include "wifi_mgr.h"
+#include "app_settings.h"
 #include "printers.h"
 #include "discovery.h"
 #include "bsp/esp-bsp.h"
 #include "ui.h"
 #include "webcam.h"
+#include "updater.h"
+
+bool screenshot_server_start(void);
+bool screenshot_tap(int x, int y);
 
 static void handle(char *line)
 {
@@ -89,8 +97,30 @@ static void handle(char *line)
     } else if (!strcmp(argv[0], "page") && argc >= 2) {
         /* page <id> [arg]: 0 home 1 printer 2 webcam(arg=idx*16+cam) 3 add 4 settings 5 wifi */
         bsp_display_lock(-1);
-        ui_nav_push((page_id_t)atoi(argv[1]), argc >= 3 ? atoi(argv[2]) : 0);
+        if (atoi(argv[1]) == 0) ui_nav_home();
+        else ui_nav_push((page_id_t)atoi(argv[1]), argc >= 3 ? atoi(argv[2]) : 0);
         bsp_display_unlock();
+    } else if (!strcmp(argv[0], "shot")) {
+        esp_netif_ip_info_t ip;
+        if (screenshot_server_start() && wifi_mgr_ip(&ip))
+            printf("screenshot: http://" IPSTR ":8080/screenshot.bmp\n", IP2STR(&ip.ip));
+        else
+            printf("screenshot server not started (Wi-Fi?)\n");
+    } else if (!strcmp(argv[0], "tap") && argc >= 3) {
+        printf(screenshot_tap(atoi(argv[1]), atoi(argv[2])) ? "tapped\n" : "nothing there\n");
+    } else if (!strcmp(argv[0], "theme") && argc >= 2) {
+        bsp_display_lock(-1);
+        ui_set_light_mode(!strcmp(argv[1], "light"));
+        bsp_display_unlock();
+    } else if (!strcmp(argv[0], "upd") && argc >= 2) {
+        if (!strcmp(argv[1], "check")) updater_check_now();
+        else if (!strcmp(argv[1], "install")) updater_install();
+        else if (!strcmp(argv[1], "dialog")) { bsp_display_lock(-1); ui_update_dialog(); bsp_display_unlock(); }
+        static upd_info_t u;
+        updater_get(&u);
+        printf("updater: state=%d current=%s latest=%s size=%u progress=%d err=%s\n", u.state, u.current, u.latest,
+               (unsigned)u.size, u.progress, u.error);
+        printf("notes: %.300s\n", u.notes);
     } else if (!strcmp(argv[0], "reboot")) {
         esp_restart();
     } else {

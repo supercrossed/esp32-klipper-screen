@@ -33,6 +33,7 @@ jobs:
           mkdir -p dist
           cp build/bootloader/bootloader.bin           dist/bootloader.bin
           cp build/partition_table/partition-table.bin dist/partition-table.bin
+          cp build/ota_data_initial.bin                dist/ota_data_initial.bin
           cp build/klipper_remote.bin                  dist/esp32-klipper-screen-app.bin
           cp build/merged.bin                          "dist/esp32-klipper-screen-${VER}.bin"
           cp build/flasher_args.json                   dist/flasher_args.json
@@ -74,12 +75,13 @@ jobs:
           cat >> notes.md <<'EOF'
 
           ---
-          **Install:** use the [web installer](https://supercrossed.github.io/esp32-klipper-screen/) (Chrome/Edge), or flash with esptool:
+          **Updating:** displays on v0.2.0 or later update themselves (Settings → Updates, or the green *Update* button).
+          **Installing:** use the [web installer](https://supercrossed.github.io/esp32-klipper-screen/) (Chrome/Edge), or flash with esptool:
 
           | File | Flash at | Use |
           |---|---|---|
           | `esp32-klipper-screen-<version>.bin` | `0x0` | Fresh install (wipes settings) |
-          | `bootloader.bin` / `partition-table.bin` / `esp32-klipper-screen-app.bin` | `0x2000` / `0x8000` / `0x20000` | Update, keeps settings |
+          | `bootloader.bin` / `partition-table.bin` / `ota_data_initial.bin` / `esp32-klipper-screen-app.bin` | `0x2000` / `0x8000` / `0x19000` / `0x20000` | Manual update, keeps settings |
 
           See [docs/INSTALL.md](https://github.com/supercrossed/esp32-klipper-screen/blob/main/docs/INSTALL.md).
           EOF
@@ -115,7 +117,7 @@ jobs:
         run: |
           mkdir -p site/firmware
           cp web/index.html site/
-          cp dist/bootloader.bin dist/partition-table.bin dist/esp32-klipper-screen-app.bin site/firmware/
+          cp dist/bootloader.bin dist/partition-table.bin dist/ota_data_initial.bin dist/esp32-klipper-screen-app.bin site/firmware/
           cat > site/manifest.json <<EOF
           {
             "name": "ESP32 Klipper Screen",
@@ -127,6 +129,7 @@ jobs:
                 "parts": [
                   { "path": "firmware/bootloader.bin", "offset": 8192 },
                   { "path": "firmware/partition-table.bin", "offset": 32768 },
+                  { "path": "firmware/ota_data_initial.bin", "offset": 102400 },
                   { "path": "firmware/esp32-klipper-screen-app.bin", "offset": 131072 }
                 ]
               }

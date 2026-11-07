@@ -11,6 +11,7 @@
 #include "wifi_mgr.h"
 #include "printers.h"
 #include "ui.h"
+#include "updater.h"
 
 static const char *TAG = "main";
 void serial_console_start(void);
@@ -56,6 +57,7 @@ void app_main(void)
     /* Networking and pollers start before the UI is built; the UI only reads their state. */
     wifi_mgr_start();
     printers_init();
+    updater_init();
     serial_console_start();
 
     bsp_display_lock(-1);

@@ -680,10 +680,8 @@ static void build_mmu(lv_obj_t *p)
         lv_obj_set_style_pad_gap(cell, 6, 0);
         lv_obj_set_flex_align(cell, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         W.path_node[i] = lv_obj_create(cell);
-        int sz = i == PATH_N - 1 ? 40 : 52;
-        lv_obj_set_size(W.path_node[i], sz, sz);
-        lv_obj_set_style_radius(W.path_node[i], i == PATH_N - 1 ? 6 : LV_RADIUS_CIRCLE, 0);
-        if (i == PATH_N - 1) lv_obj_set_style_transform_rotation(W.path_node[i], 450, 0);
+        lv_obj_set_size(W.path_node[i], 52, 52);
+        lv_obj_set_style_radius(W.path_node[i], LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_border_width(W.path_node[i], 3, 0);
         lv_obj_set_style_border_color(W.path_node[i], COL_BORDER, 0);
         lv_obj_set_style_bg_color(W.path_node[i], COL_CARD2, 0);
@@ -748,8 +746,9 @@ static void refresh_mmu(bool fresh)
     if (!fresh) return;
     const mmu_info_t *m = &s_st.mmu;
     char b[200];
-    snprintf(b, sizeof(b), "%s%s%s", m->type == MMU_AFC ? "AFC" : m->type == MMU_HAPPY_HARE ? "Happy Hare" : "No MMU",
-             m->unit[0] ? "  -  " : "", m->unit);
+    const char *sys = m->type == MMU_AFC ? "AFC" : m->type == MMU_HAPPY_HARE ? "Happy Hare" : "No MMU";
+    bool same = !m->unit[0] || !strcasecmp(m->unit, sys);
+    snprintf(b, sizeof(b), "%s%s%s", sys, same ? "" : "  -  ", same ? "" : m->unit);
     ui_set_text(W.mmu_title, b);
     static const char *stage_txt[] = { "parked in lane", "at hub/selector", "in bowden", "in extruder", "loaded to nozzle" };
     snprintf(b, sizeof(b), "Current: %s   -   Filament %s%s%s", m->current,
