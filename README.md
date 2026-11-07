@@ -19,6 +19,8 @@ It runs on the [Waveshare ESP32-P4 5″ touch display](https://www.waveshare.com
 - **Give printers nicknames** so you know which is which.
 - **Add printers easily.** Search your network, or type in the address.
 - **Control a printer.** Pause, resume or cancel prints, set temperatures, home and move the axes, extrude filament, run your macros, or hit the emergency stop.
+- **Console.** See the printer's console and type commands, like in Mainsail or Fluidd.
+- **System controls.** Restart Klipper, restart services, or reboot and shut down the printer's computer.
 - **Watch the camera** full screen.
 - **Multi-material support** for AFC (Box Turtle) and Happy Hare. See which filament is in each lane and where the loaded one is.
 - **Spoolman support.** Browse your spools and filaments, pick the active spool, and show a spool's QR code to scan.
@@ -35,6 +37,8 @@ It runs on the [Waveshare ESP32-P4 5″ touch display](https://www.waveshare.com
 | **Extrude**: heat up and feed filament | **Macros**: your printer's macros as buttons |
 | ![AFC](docs/images/mmu-afc.png) | ![Happy Hare](docs/images/mmu-happy-hare.png) |
 | **Multi-material (AFC)** | **Multi-material (Happy Hare)** |
+| ![Console](docs/images/printer-console.png) | ![System](docs/images/printer-system.png) |
+| **Console**: the printer's console, send commands | **System**: restart services, reboot the host |
 | ![Spoolman](docs/images/spoolman.png) | ![Settings](docs/images/settings.png) |
 | **Spoolman** with a scannable spool QR code | **Settings** |
 

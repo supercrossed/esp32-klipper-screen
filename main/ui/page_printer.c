@@ -11,8 +11,10 @@
 #include <time.h>
 #include "printers.h"
 #include "wifi_mgr.h"
+#include "machine.h"
+#include "esp_heap_caps.h"
 
-typedef enum { TAB_STATUS = 0, TAB_MOVE, TAB_EXTRUDE, TAB_MMU, TAB_MACROS, TAB_COUNT } tab_t;
+typedef enum { TAB_STATUS = 0, TAB_MOVE, TAB_EXTRUDE, TAB_MMU, TAB_MACROS, TAB_CONSOLE, TAB_SYSTEM, TAB_COUNT } tab_t;
 
 #define SIDEBAR_W 104
 #define PATH_N 5
@@ -51,9 +53,14 @@ static struct {
     /* macros tab */
     lv_obj_t *macro_grid;
     int nmacros_shown;
+    /* console tab */
+    lv_obj_t *con_ta, *con_log, *con_status;
+    /* system tab */
+    lv_obj_t *svc_list, *svc_status;
+    uint32_t mver;
 } W;
 
-static const char *stat_names[6] = { ICON_CLOCK "  Elapsed", ICON_TIMER "  Remaining", ICON_ETA "  ETA",
+static const char *stat_names[6] = { ICON_CLOCK "  Elapsed", ICON_TIMER "  Left", ICON_ETA "  ETA",
                                       ICON_LAYERS "  Layer", ICON_SPOOL "  Filament", ICON_SPEED "  Speed" };
 static const float STEPS[] = { 0.1f, 1, 10, 50 };
 static const int EXTS[] = { 1, 5, 10, 25, 50 };
@@ -97,13 +104,14 @@ static void show(lv_obj_t *o, bool on)
     else if (!on && !lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
 }
 
-static int panel_width(void) { return ui_width() - 32 - SIDEBAR_W - 16; }
+static int panel_width(void) { return ui_width() - 32 - 2 * (SIDEBAR_W + 16); }   /* two side bars */
 static bool busy_printing(void) { return s_st.status == PS_PRINTING; }
 
 /* ── actions ─────────────────────────────────────────────────────────── */
 static void do_cmd(void *user) { printers_command(s_idx, (printer_cmd_t)(intptr_t)user, NULL); }
 static void do_gcode(void *user) { printers_command(s_idx, CMD_GCODE, (const char *)user); }
-static void gcode_now(const char *g) { printers_command(s_idx, CMD_GCODE, g); }
+static void do_motors_off(void *u) { printers_gcode(s_idx, "M84", "Motors off", false); }
+static void do_heaters_off(void *u) { printers_gcode(s_idx, "TURN_OFF_HEATERS", "Heaters off", false); }
 
 static void pause_cb(lv_event_t *e)
 {
@@ -119,18 +127,18 @@ static void restart_cb(lv_event_t *e) { printers_command(s_idx, CMD_KLIPPER_REST
 static void fwrestart_cb(lv_event_t *e) { printers_command(s_idx, CMD_FIRMWARE_RESTART, NULL); }
 static void heaters_off_cb(lv_event_t *e)
 {
-    ui_confirm("Turn off all heaters?", "Sets every heater target to 0.", "Turn off", COL_WARN, do_gcode, "TURN_OFF_HEATERS");
+    ui_confirm("Turn off all heaters?", "Sets every heater target to 0.", "Turn off", COL_WARN, do_heaters_off, NULL);
 }
 static void motors_cb(lv_event_t *e)
 {
     if (busy_printing()) { ui_toast("Not while printing"); return; }
-    ui_confirm("Disable motors?", "Steppers will be released and the printer will need homing again.", "Disable", COL_WARN, do_gcode, "M84");
+    ui_confirm("Disable motors?", "Steppers will be released and the printer will need homing again.", "Disable", COL_WARN, do_motors_off, NULL);
 }
 static void home_cb(lv_event_t *e)
 {
     const char *g = lv_event_get_user_data(e);
     if (busy_printing()) { ui_toast("Not while printing"); return; }
-    gcode_now(g);
+    printers_gcode(s_idx, g, "Homing", false);
     ui_toast("Homing...");
 }
 static void level_cb(lv_event_t *e)
@@ -151,7 +159,9 @@ static void set_temp(float v, void *user)
         snprintf(g, sizeof(g), "SET_TEMPERATURE_FAN_TARGET TEMPERATURE_FAN=%s TARGET=%.0f", sp + 1, v);
     else
         snprintf(g, sizeof(g), "SET_HEATER_TEMPERATURE HEATER=%s TARGET=%.0f", sp ? sp + 1 : ht->obj, v);
-    gcode_now(g);
+    char lbl[40];
+    snprintf(lbl, sizeof(lbl), "%s temperature", ht->label);
+    printers_gcode(s_idx, g, lbl, true);
 }
 
 static void heater_click(lv_event_t *e)
@@ -176,11 +186,11 @@ static void jog_cb(lv_event_t *e)
     char axis = (char)(v & 0xFF);
     int sign = (v >> 8) ? -1 : 1;
     if (busy_printing()) { ui_toast("Not while printing"); return; }
-    char g[96];
+    char g[160];
     float d = STEPS[s_step_i] * sign;
     int f = axis == 'Z' ? 600 : 6000;
-    snprintf(g, sizeof(g), "G91\nG1 %c%.2f F%d\nG90", axis, d, f);
-    gcode_now(g);
+    snprintf(g, sizeof(g), "SAVE_GCODE_STATE NAME=_ks_jog\nG91\nG1 %c%.2f F%d\nRESTORE_GCODE_STATE NAME=_ks_jog", axis, d, f);
+    printers_gcode(s_idx, g, "Move", true);
 }
 
 static void extrude_cb(lv_event_t *e)
@@ -190,9 +200,10 @@ static void extrude_cb(lv_event_t *e)
     float t = 0;
     for (int i = 0; i < s_st.nheaters; i++) if (!strcmp(s_st.heaters[i].obj, "extruder")) t = s_st.heaters[i].temp;
     if (t < 170) { ui_toast("Hotend is below 170°C - heat it first"); return; }
-    char g[64];
-    snprintf(g, sizeof(g), "M83\nG1 E%d F%d", sign * EXTS[s_ext_i], ESPEEDS[s_espd_i] * 60);
-    gcode_now(g);
+    char g[160];
+    snprintf(g, sizeof(g), "SAVE_GCODE_STATE NAME=_ks_ext\nM83\nG1 E%d F%d\nRESTORE_GCODE_STATE NAME=_ks_ext",
+             sign * EXTS[s_ext_i], ESPEEDS[s_espd_i] * 60);
+    printers_gcode(s_idx, g, sign > 0 ? "Extrude" : "Retract", true);
 }
 
 static void step_cb(lv_event_t *e) { s_step_i = lv_buttonmatrix_get_selected_button(lv_event_get_target(e)); }
@@ -202,7 +213,7 @@ static void macro_cb(lv_event_t *e)
 {
     int i = (int)(intptr_t)lv_event_get_user_data(e);
     if (i >= s_st.nmacros) return;
-    static char g[32];
+    static char g[48];
     strlcpy(g, s_st.macros[i], sizeof(g));
     char t[96];
     snprintf(t, sizeof(t), "Run %s on this printer?", g);
@@ -266,6 +277,9 @@ static void build_heaters(void)
         heater_row_t *h = &W.hrows[W.nhrows++];
         h->row = lv_obj_create(W.heat_card);
         lv_obj_set_size(h->row, LV_PCT(100), 72);
+        lv_obj_set_flex_flow(h->row, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(h->row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_gap(h->row, 10, 0);
         lv_obj_set_style_bg_color(h->row, COL_CARD2, 0);
         lv_obj_set_style_bg_color(h->row, COL_BORDER, LV_STATE_PRESSED);
         lv_obj_set_style_border_width(h->row, 0, 0);
@@ -278,18 +292,23 @@ static void build_heaters(void)
         uint8_t k = s_st.heaters[i].kind;
         snprintf(nm, sizeof(nm), "%s  %s", k == 0 ? ICON_HOTEND : k == 1 ? ICON_BED : k == 2 ? ICON_CHAMBER : ICON_THERMO,
                  s_st.heaters[i].label);
-        h->name = ui_label(h->row, FONT_M, COL_MUTED, nm);
-        lv_obj_align(h->name, LV_ALIGN_LEFT_MID, 0, -8);
-        h->cur = ui_label(h->row, FONT_XL, COL_TEXT, "--");
-        lv_obj_align(h->cur, LV_ALIGN_RIGHT_MID, -130, 0);
-        h->tgt = ui_label(h->row, FONT_M, COL_MUTED, "");
-        lv_obj_set_width(h->tgt, 120);
-        lv_obj_set_style_text_align(h->tgt, LV_TEXT_ALIGN_RIGHT, 0);
-        lv_obj_align(h->tgt, LV_ALIGN_RIGHT_MID, 0, 0);
-        h->bar = lv_bar_create(h->row);
-        lv_obj_set_size(h->bar, 120, 6);
+        /* [ name + power bar | current | target ] as a flex row: nothing can overlap */
+        lv_obj_t *nc = plain(h->row, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_width(nc, 1);
+        lv_obj_set_flex_grow(nc, 1);
+        lv_obj_set_style_pad_gap(nc, 6, 0);
+        lv_obj_remove_flag(nc, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_flag(nc, LV_OBJ_FLAG_EVENT_BUBBLE);
+        h->name = ui_label(nc, FONT_M, COL_MUTED, nm);
+        lv_label_set_long_mode(h->name, LV_LABEL_LONG_DOT);
+        lv_obj_set_width(h->name, LV_PCT(100));
+        h->bar = lv_bar_create(nc);
+        lv_obj_set_size(h->bar, LV_PCT(80), 6);
         lv_bar_set_range(h->bar, 0, 100);
-        lv_obj_align(h->bar, LV_ALIGN_LEFT_MID, 0, 18);
+        h->cur = ui_label(h->row, FONT_XL, COL_TEXT, "--");
+        h->tgt = ui_label(h->row, FONT_M, COL_MUTED, "");
+        lv_obj_set_width(h->tgt, 72);
+        lv_obj_set_style_text_align(h->tgt, LV_TEXT_ALIGN_RIGHT, 0);
         lv_obj_set_style_bg_color(h->bar, COL_HOT, LV_PART_INDICATOR);
         lv_obj_remove_flag(h->bar, LV_OBJ_FLAG_CLICKABLE);
         if (!s_st.heaters[i].settable) lv_obj_add_flag(h->bar, LV_OBJ_FLAG_HIDDEN);
@@ -343,7 +362,7 @@ static void build_status(lv_obj_t *p)
     lv_obj_set_style_pad_row(grid, 8, 0);
     for (int i = 0; i < 6; i++) {
         lv_obj_t *cell = plain(grid, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_width(cell, LV_PCT(31));
+        lv_obj_set_width(cell, LV_PCT(32));
         lv_obj_set_style_pad_gap(cell, 2, 0);
         ui_label(cell, FONT_S, COL_MUTED, stat_names[i]);
         W.stat[i] = ui_label(cell, FONT_L, COL_TEXT, "--");
@@ -360,9 +379,6 @@ static void build_status(lv_obj_t *p)
     lv_label_set_long_mode(W.mmu_summary, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(W.mmu_summary, LV_PCT(100));
 
-    W.heat_card = card(right, NULL);
-    build_heaters();
-
     lv_obj_t *cc = card(right, "QUICK CONTROLS");
     lv_obj_set_style_pad_gap(cc, 14, 0);
     lv_obj_t *r1 = plain(cc, LV_FLEX_FLOW_ROW);
@@ -377,16 +393,21 @@ static void build_status(lv_obj_t *p)
     lv_obj_set_height(es, 84);
     lv_obj_set_style_text_font(lv_obj_get_child(es, 1), FONT_L, 0);
 
+
+    W.heat_card = card(right, NULL);
+    build_heaters();
+
     memset(&W.th, 0, sizeof(W.th));
     W.th.ver = UINT32_MAX;
 }
 
 static void refresh_status(bool fresh)
 {
-    ui_thumb_update(&W.th, W.thumb, s_idx, ui_is_portrait() ? 200 : 160);
+    ui_thumb_update(&W.th, W.thumb, s_idx, 120);
     if (!fresh) return;
     char b[200];
     lv_obj_set_style_bg_color(W.chip, ui_status_color(s_st.status), 0);
+    lv_obj_set_style_text_color(W.chip_lbl, ui_contrast(ui_status_color(s_st.status)), 0);
     ui_set_text(W.chip_lbl, printer_status_str(s_st.status));
     bool job = s_st.status == PS_PRINTING || s_st.status == PS_PAUSED;
     bool down = s_st.status == PS_OFFLINE || s_st.status == PS_KLIPPY_DOWN;
@@ -568,7 +589,10 @@ static void preheat_cb(lv_event_t *e)
     int t = (int)(intptr_t)lv_event_get_user_data(e);
     char g[80];
     snprintf(g, sizeof(g), "SET_HEATER_TEMPERATURE HEATER=extruder TARGET=%d", t);
-    gcode_now(g);
+    printers_gcode(s_idx, g, "Hotend temperature", true);
+    char m[48];
+    snprintf(m, sizeof(m), t ? ICON_HOTEND "  Heating hotend to %d°" : ICON_HEAT_OFF "  Hotend off", t);
+    ui_toast(m);
 }
 
 static const char *find_macro(const char *name)
@@ -828,6 +852,208 @@ static void refresh_macros(bool fresh)
     if (fresh && s_st.nmacros != W.nmacros_shown) build_macro_buttons();
 }
 
+/* ── CONSOLE tab ─────────────────────────────────────────────────────── */
+static con_line_t *s_con;   /* PSRAM scratch while the console is open */
+
+static void con_send(const char *cmd)
+{
+    if (!cmd || !cmd[0]) return;
+    printers_gcode(s_idx, cmd, "Console", true);   /* responses show up in the log itself */
+    machine_refresh_now();
+}
+
+static void con_send_cb(lv_event_t *e)
+{
+    char cmd[200];
+    strlcpy(cmd, lv_textarea_get_text(W.con_ta), sizeof(cmd));
+    con_send(cmd);
+    lv_textarea_set_text(W.con_ta, "");
+}
+
+static void con_quick_cb(lv_event_t *e) { con_send((const char *)lv_event_get_user_data(e)); }
+
+static void build_console(lv_obj_t *p)
+{
+    lv_obj_set_flex_flow(p, LV_FLEX_FLOW_COLUMN);
+    lv_obj_t *c = card(p, NULL);
+    lv_obj_t *r = plain(c, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(r, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    W.con_ta = lv_textarea_create(r);
+    lv_textarea_set_one_line(W.con_ta, true);
+    lv_textarea_set_placeholder_text(W.con_ta, "Type a command, e.g. G28");
+    lv_textarea_set_max_length(W.con_ta, 190);
+    lv_obj_set_flex_grow(W.con_ta, 1);
+    lv_obj_set_style_text_font(W.con_ta, FONT_L, 0);
+    ui_attach_keyboard(W.con_ta, LV_KEYBOARD_MODE_TEXT_UPPER);
+    lv_obj_add_event_cb(W.con_ta, con_send_cb, LV_EVENT_READY, NULL);
+    ui_button(r, ICON_SEND, "Send", COL_ACCENT, con_send_cb, NULL);
+    lv_obj_t *q = plain(c, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_set_style_pad_gap(q, 8, 0);
+    static const char *quick[] = { "QUERY_ENDSTOPS", "GET_POSITION", "M115", "HELP" };
+    for (int i = 0; i < 4; i++) {
+        lv_obj_t *b = ui_button(q, NULL, quick[i], COL_CARD2, con_quick_cb, (void *)quick[i]);
+        lv_obj_set_style_min_height(b, 48, 0);
+        lv_obj_set_style_pad_ver(b, 6, 0);
+    }
+
+    lv_obj_t *lc = card(p, NULL);
+    W.con_status = ui_label(lc, FONT_S, COL_MUTED, "Loading console...");
+    W.con_log = plain(lc, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_gap(W.con_log, 4, 0);
+    if (!s_con) s_con = heap_caps_malloc(CONSOLE_MAX * sizeof(con_line_t), MALLOC_CAP_SPIRAM);
+    W.mver = UINT32_MAX;
+    machine_start_console(s_idx);
+}
+
+static void refresh_console(bool fresh)
+{
+    char err[96];
+    bool failed = machine_error(err, sizeof(err));
+    if (machine_version() == W.mver && !failed) return;
+    W.mver = machine_version();
+    if (failed) { ui_set_text(W.con_status, err); return; }
+    if (!s_con) return;
+    int n = machine_console(s_con, CONSOLE_MAX);
+    lv_obj_clean(W.con_log);
+    for (int i = n - 1; i >= 0; i--) {   /* newest first, right under the input */
+        const con_line_t *l = &s_con[i];
+        char t[200], ts[12] = "";
+        time_t tt = (time_t)l->time;
+        struct tm tm;
+        localtime_r(&tt, &tm);
+        strftime(ts, sizeof(ts), "%H:%M:%S", &tm);
+        bool err_line = !strncmp(l->msg, "!!", 2);
+        snprintf(t, sizeof(t), "%s  %s%s", ts, l->type == 'c' ? "> " : "", l->msg);
+        lv_obj_t *lb = ui_label(W.con_log, FONT_S,
+                                err_line ? COL_ERR : l->type == 'c' ? COL_ACCENT : COL_TEXT, t);
+        lv_label_set_long_mode(lb, LV_LABEL_LONG_WRAP);
+        lv_obj_set_width(lb, LV_PCT(100));
+    }
+    char st[48];
+    snprintf(st, sizeof(st), "%d recent lines  -  newest first", n);
+    ui_set_text(W.con_status, n ? st : "Console is empty");
+}
+
+/* ── SYSTEM tab ──────────────────────────────────────────────────────── */
+static svc_t s_svc[SVC_MAX];
+static struct { printer_cmd_t cmd; char name[32]; } s_pending;
+
+static void do_pending(void *u) { printers_command(s_idx, s_pending.cmd, s_pending.name[0] ? s_pending.name : NULL); }
+
+static void sys_cmd_cb(lv_event_t *e)
+{
+    printer_cmd_t cmd = (printer_cmd_t)(intptr_t)lv_event_get_user_data(e);
+    s_pending.cmd = cmd;
+    s_pending.name[0] = 0;
+    const char *title = "", *text = "", *ok = "Confirm";
+    lv_color_t col = COL_WARN;
+    switch (cmd) {
+    case CMD_KLIPPER_RESTART:  title = "Restart Klipper?"; text = "Reloads printer.cfg. Any print in progress stops."; ok = "Restart"; break;
+    case CMD_FIRMWARE_RESTART: title = "Firmware restart?"; text = "Restarts Klipper and the printer's MCUs. Any print in progress stops."; ok = "Restart"; break;
+    case CMD_HOST_REBOOT:      title = "Reboot the host?"; text = "The printer's computer restarts. It will be offline for a minute or two."; ok = "Reboot"; break;
+    case CMD_HOST_SHUTDOWN:    title = "Shut down the host?"; text = "The printer's computer powers off. You'll need to switch it back on by hand."; ok = "Shut down"; col = COL_ERR; break;
+    default: return;
+    }
+    ui_confirm(title, text, ok, col, do_pending, NULL);
+}
+
+static void svc_cb(lv_event_t *e)
+{
+    int v = (int)(intptr_t)lv_event_get_user_data(e);
+    int i = v & 0xFF;
+    printer_cmd_t cmd = (printer_cmd_t)(v >> 8);
+    if (i >= SVC_MAX) return;
+    s_pending.cmd = cmd;
+    strlcpy(s_pending.name, s_svc[i].name, sizeof(s_pending.name));
+    if (cmd == CMD_SERVICE_START) { do_pending(NULL); return; }
+    char t[120];
+    snprintf(t, sizeof(t), "%s the %s service?", cmd == CMD_SERVICE_STOP ? "Stop" : "Restart", s_svc[i].name);
+    ui_confirm(cmd == CMD_SERVICE_STOP ? "Stop service?" : "Restart service?", t,
+               cmd == CMD_SERVICE_STOP ? "Stop" : "Restart", cmd == CMD_SERVICE_STOP ? COL_ERR : COL_WARN, do_pending, NULL);
+}
+
+static lv_obj_t *icon_btn(lv_obj_t *parent, const char *icon, lv_color_t bg, lv_event_cb_t cb, intptr_t u)
+{
+    lv_obj_t *b = ui_button(parent, icon, NULL, bg, cb, (void *)u);
+    lv_obj_set_size(b, 64, 52);
+    lv_obj_set_style_pad_all(b, 0, 0);
+    lv_obj_set_style_min_height(b, 52, 0);
+    return b;
+}
+
+static void build_svc_rows(int n)
+{
+    lv_obj_clean(W.svc_list);
+    for (int i = 0; i < n; i++) {
+        const svc_t *v = &s_svc[i];
+        lv_obj_t *r = lv_obj_create(W.svc_list);
+        lv_obj_set_size(r, LV_PCT(100), 68);
+        lv_obj_set_style_bg_color(r, COL_CARD2, 0);
+        lv_obj_set_style_border_width(r, 0, 0);
+        lv_obj_set_style_radius(r, 12, 0);
+        lv_obj_set_style_pad_hor(r, 14, 0);
+        lv_obj_set_style_pad_ver(r, 0, 0);
+        lv_obj_set_style_pad_gap(r, 10, 0);
+        lv_obj_set_flex_flow(r, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(r, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_remove_flag(r, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_t *nm = ui_label(r, FONT_M, COL_TEXT, v->name);
+        lv_label_set_long_mode(nm, LV_LABEL_LONG_DOT);
+        lv_obj_set_flex_grow(nm, 1);
+        bool running = !strcmp(v->active, "active");
+        bool failed = !strcmp(v->active, "failed");
+        lv_obj_t *chip = lv_obj_create(r);
+        lv_obj_set_size(chip, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        lv_obj_set_style_radius(chip, 20, 0);
+        lv_obj_set_style_border_width(chip, 0, 0);
+        lv_obj_set_style_pad_hor(chip, 12, 0);
+        lv_obj_set_style_pad_ver(chip, 4, 0);
+        lv_color_t cc = running ? COL_OK : failed ? COL_ERR : COL_BORDER;
+        lv_obj_set_style_bg_color(chip, cc, 0);
+        ui_label(chip, FONT_S, ui_contrast(cc), running ? "Running" : failed ? "Failed" : v->active[0] ? "Stopped" : "Unknown");
+        icon_btn(r, ICON_RESTART, COL_CARD, svc_cb, (CMD_SERVICE_RESTART << 8) | i);
+        if (running) icon_btn(r, ICON_CANCEL, COL_CARD, svc_cb, (CMD_SERVICE_STOP << 8) | i);
+        else icon_btn(r, ICON_PLAY, COL_CARD, svc_cb, (CMD_SERVICE_START << 8) | i);
+    }
+}
+
+static void build_system(lv_obj_t *p)
+{
+    lv_obj_set_flex_flow(p, LV_FLEX_FLOW_COLUMN);
+    lv_obj_t *kc = card(p, "KLIPPER");
+    lv_obj_t *kr = plain(kc, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_gap(kr, 12, 0);
+    ui_tile_button(kr, ICON_RESTART, "Restart", COL_CARD2, sys_cmd_cb, (void *)CMD_KLIPPER_RESTART);
+    ui_tile_button(kr, ICON_RESTART, "Firmware restart", COL_CARD2, sys_cmd_cb, (void *)CMD_FIRMWARE_RESTART);
+
+    lv_obj_t *sc = card(p, "SERVICES");
+    W.svc_status = ui_label(sc, FONT_S, COL_MUTED, "Loading services...");
+    W.svc_list = plain(sc, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_gap(W.svc_list, 8, 0);
+
+    lv_obj_t *hc = card(p, "HOST");
+    lv_obj_t *hr = plain(hc, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_gap(hr, 12, 0);
+    ui_tile_button(hr, ICON_RESTART, "Reboot", COL_CARD2, sys_cmd_cb, (void *)CMD_HOST_REBOOT);
+    ui_tile_button(hr, ICON_POWER, "Shut down", COL_ERR, sys_cmd_cb, (void *)CMD_HOST_SHUTDOWN);
+
+    W.mver = UINT32_MAX;
+    machine_start_services(s_idx);
+}
+
+static void refresh_system(bool fresh)
+{
+    char err[96];
+    bool failed = machine_error(err, sizeof(err));
+    if (machine_version() == W.mver && !failed) return;
+    W.mver = machine_version();
+    if (failed) { ui_set_text(W.svc_status, err); return; }
+    int n = machine_services(s_svc, SVC_MAX);
+    if (n < 0) return;
+    build_svc_rows(n);
+    ui_set_text(W.svc_status, n ? "Services managed by Moonraker" : "Moonraker lists no services");
+}
+
 /* ── tabs / sidebar ──────────────────────────────────────────────────── */
 static void set_tab(tab_t t)
 {
@@ -835,6 +1061,7 @@ static void set_tab(tab_t t)
         lv_image_set_src(W.thumb, NULL);
         ui_thumb_free(&W.th);
     }
+    machine_stop();   /* console/system polling only while their tab is open */
     s_tab = t;
     lv_obj_clean(s_panel);
     memset(&W, 0, sizeof(W));
@@ -845,6 +1072,8 @@ static void set_tab(tab_t t)
     case TAB_EXTRUDE: build_extrude(s_panel); break;
     case TAB_MMU:    build_mmu(s_panel); break;
     case TAB_MACROS: build_macros(s_panel); break;
+    case TAB_CONSOLE: build_console(s_panel); break;
+    case TAB_SYSTEM: build_system(s_panel); break;
     default: break;
     }
     for (int i = 0; i < TAB_COUNT; i++) {
@@ -914,12 +1143,8 @@ static void create(lv_obj_t *parent, int idx)
     s_side_btn[TAB_EXTRUDE] = side_btn(bar, ICON_EXTRUDE, "Extrude", side_cb, (void *)TAB_EXTRUDE);
     s_side_btn[TAB_MMU]    = side_btn(bar, ICON_MMU, "MMU", side_cb, (void *)TAB_MMU);
     s_side_btn[TAB_MACROS] = side_btn(bar, ICON_MACRO, "Macros", side_cb, (void *)TAB_MACROS);
-    s_spool_btn = side_btn(bar, ICON_SPOOL, "Spools", spool_cb, NULL);
-    s_cam_btn = side_btn(bar, ICON_WEBCAM, "Camera", cam_cb, NULL);
-    show(s_spool_btn, s_st.has_spoolman);
     show(s_side_btn[TAB_MMU], s_st.mmu.type != MMU_NONE);
     show(s_side_btn[TAB_MACROS], s_st.nmacros > 0);
-    show(s_cam_btn, s_st.nwebcams > 0);
 
     s_panel = lv_obj_create(parent);
     lv_obj_set_height(s_panel, LV_PCT(100));
@@ -929,6 +1154,22 @@ static void create(lv_obj_t *parent, int idx)
     lv_obj_set_style_pad_all(s_panel, 0, 0);
     lv_obj_set_style_pad_gap(s_panel, 16, 0);
     lv_obj_set_scroll_dir(s_panel, LV_DIR_VER);
+
+    /* Right bar: extra tools (room for more later). */
+    lv_obj_t *rbar = lv_obj_create(parent);
+    lv_obj_set_size(rbar, SIDEBAR_W, LV_PCT(100));
+    lv_obj_set_style_bg_opa(rbar, 0, 0);
+    lv_obj_set_style_border_width(rbar, 0, 0);
+    lv_obj_set_style_pad_all(rbar, 0, 0);
+    lv_obj_set_style_pad_gap(rbar, 6, 0);
+    lv_obj_set_flex_flow(rbar, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_scroll_dir(rbar, LV_DIR_VER);
+    s_cam_btn = side_btn(rbar, ICON_WEBCAM, "Camera", cam_cb, NULL);
+    s_spool_btn = side_btn(rbar, ICON_SPOOL, "Spools", spool_cb, NULL);
+    s_side_btn[TAB_CONSOLE] = side_btn(rbar, ICON_CONSOLE, "Console", side_cb, (void *)TAB_CONSOLE);
+    s_side_btn[TAB_SYSTEM] = side_btn(rbar, ICON_SERVER, "System", side_cb, (void *)TAB_SYSTEM);
+    show(s_spool_btn, s_st.has_spoolman);
+    show(s_cam_btn, s_st.nwebcams > 0);
 
     s_tab = TAB_STATUS;
     set_tab(TAB_STATUS);
@@ -951,12 +1192,16 @@ static void refresh(void)
     case TAB_EXTRUDE: refresh_extrude(fresh); break;
     case TAB_MMU:    refresh_mmu(fresh); break;
     case TAB_MACROS: refresh_macros(fresh); break;
+    case TAB_CONSOLE: refresh_console(fresh); break;
+    case TAB_SYSTEM: refresh_system(fresh); break;
     default: break;
     }
 }
 
 static void destroy(void)
 {
+    machine_stop();
+    if (s_con) { heap_caps_free(s_con); s_con = NULL; }
     if (s_tab == TAB_STATUS && W.thumb) lv_image_set_src(W.thumb, NULL);
     ui_thumb_free(&W.th);
     printers_set_focus(-1);   /* back to slow, light polling */

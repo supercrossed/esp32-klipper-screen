@@ -63,3 +63,6 @@
 #define ICON_LIST         "\xF3\xB0\x89\xB9"   /* mdi-format-list-bulleted */
 #define ICON_UPDATE       "\xF3\xB0\xAD\xBD"   /* mdi-cloud-download-outline */
 #define ICON_NEW          "\xF3\xB0\x8E\x94"   /* mdi-new-box */
+#define ICON_CONSOLE      "\xF3\xB0\x9E\xB7"   /* mdi-console-line */
+#define ICON_SERVER       "\xF3\xB0\x92\x8B"   /* mdi-server */
+#define ICON_SEND         "\xF3\xB0\x92\x8A"   /* mdi-send */

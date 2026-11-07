@@ -88,7 +88,11 @@ static void cam_task(void *arg)
     int dec_w = 0, dec_h = 0;
 
     jpeg_decode_engine_cfg_t ecfg = { .intr_priority = 0, .timeout_ms = 200 };
-    if (jpeg_new_decoder_engine(&ecfg, &dec) != ESP_OK) { set_status(c, "JPEG engine busy"); goto done; }
+    /* A just-closed stream may still be releasing the engine: give it up to 3 s. */
+    for (int tries = 0; jpeg_new_decoder_engine(&ecfg, &dec) != ESP_OK; tries++) {
+        if (tries >= 30 || c->stop) { set_status(c, "JPEG engine busy"); goto done; }
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
     ppa_client_config_t pcfg = { .oper_type = PPA_OPERATION_SRM, .max_pending_trans_num = 1 };
     if (ppa_register_client(&pcfg, &ppa) != ESP_OK) { set_status(c, "PPA unavailable"); goto done; }
     jpeg_decode_memory_alloc_cfg_t in_cfg = { .buffer_direction = JPEG_DEC_ALLOC_INPUT_BUFFER };

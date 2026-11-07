@@ -49,6 +49,11 @@ Commands sent: AFC `CHANGE_TOOL LANE=<lane>`, `TOOL_UNLOAD`; Happy Hare `MMU_CHA
 - **Macros:** every `gcode_macro` not starting with `_`. Also `LOAD_FILAMENT` / `UNLOAD_FILAMENT` on the Extrude tab, `QUAD_GANTRY_LEVEL` / `Z_TILT_ADJUST` on the Move tab, and `TURN_OFF_HEATERS`.
 - **Remaining time** is estimated from file progress (`print_duration / progress − print_duration`), the same as Mainsail's default.
 
+## Console and system controls
+
+- **Console:** `GET /server/gcode_store?count=150` every second while the Console tab is open. Commands are sent with `POST /printer/gcode/script`.
+- **System:** `GET /machine/system_info` every 5 s while the tab is open, which supplies `available_services` and `service_state`. Actions go to `POST /machine/services/{restart|stop|start}?service=…`, `POST /machine/reboot` and `POST /machine/shutdown`. Moonraker only lists services allowed by its `moonraker.asvc` file.
+
 ## Load on the printer
 
 The printer you're viewing is polled every 1 s with one `objects/query`. Every other printer gets a smaller query every 3 s. Both rates are adjustable in *Settings → Printers*. Offline printers back off to 8 s.

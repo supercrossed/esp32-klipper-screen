@@ -169,6 +169,7 @@ static void check_task(void *arg)
     s_info->size = size;
     s_info->checked_at = time(NULL);
     s_info->state = newer ? UPD_AVAILABLE : UPD_UP_TO_DATE;
+    s_info->available = newer;
     s_info->error[0] = 0;
     strlcpy(s_asset_url, url, sizeof(s_asset_url));
     UNLOCK();
@@ -289,7 +290,7 @@ void updater_check_now(void)
 
 void updater_install(void)
 {
-    if (s_busy || updater_state() != UPD_AVAILABLE) return;
+    if (s_busy || !s_info || !s_info->available) return;   /* also allows a retry after a failure */
     s_busy = true;
     set_state(UPD_INSTALLING, NULL);
     /* internal stack: this task writes flash */
@@ -308,3 +309,4 @@ void updater_get(upd_info_t *out)
 }
 
 upd_state_t updater_state(void) { return s_info ? s_info->state : UPD_IDLE; }
+bool updater_update_known(void) { return s_info && s_info->available; }

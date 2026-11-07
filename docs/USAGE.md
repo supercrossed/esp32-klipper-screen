@@ -19,14 +19,14 @@ Home tiles refresh every 3 s by default, and the open printer every 1 s. Both ca
 
 ## Printer page
 
-A sidebar on the left switches between sections. Only the selected section is kept in memory.
+The **left bar** holds the printer's main sections: Status, Move, Extrude, MMU and Macros. The **right bar** holds extra tools: Camera, Spools, Console and System, with room for more. Only the selected section is kept in memory.
 
 ### Status
+- **Quick controls** come first, so they're always on screen: Home all, Motors off, Heaters off, and **EMERGENCY STOP** (immediate, no confirmation).
 - The job card shows the file, thumbnail, percentage and progress bar, followed by **Elapsed**, **Remaining**, **ETA** (clock time), **Layer**, **Filament** used and **Speed** factor.
 - **Pause / Resume** and **Cancel** appear while printing. Both ask for confirmation.
 - When Klipper is in an error or shutdown state, the reason is shown with **Restart** and **Firmware restart** buttons.
 - **Temperatures**: tap a heater to set its target with a numpad and presets. Chamber heaters (`heater_generic`/`temperature_fan`) can be set too; a plain chamber `temperature_sensor` is read-only.
-- **Quick controls**: Home all, Motors off, Heaters off, and **EMERGENCY STOP** (immediate, no confirmation).
 
 ### Move
 - Jog step: 0.1 / 1 / 10 / 50 mm. XY pad with a centre **Home XY** button, and a Z column with **Home Z**.
@@ -53,6 +53,16 @@ Shown when the printer's Moonraker has a `[spoolman]` section.
 - **Spools / Filaments** tabs list colour, name, vendor, material, grams left and location.
 - Tap a spool for its details and a large **QR code** (`web+spoolman:s-<id>`) that a 2D scanner can read off the screen.
 - **Set active on <printer>** or **Clear active spool**. The active spool is marked with ✓.
+
+### Console (right bar)
+The printer's recent console, the same one shown in Mainsail or Fluidd, newest first. Your commands are blue and errors red. Type a command at the top (it stays visible above the keyboard) and tap **Send**, or use a shortcut: `QUERY_ENDSTOPS`, `GET_POSITION`, `M115`, `HELP`. The console refreshes every second while open.
+
+### System (right bar)
+- **Klipper**: Restart (reloads the config) and Firmware restart.
+- **Services**: every service Moonraker manages (Klipper, Moonraker, Crowsnest, KlipperScreen, …) with Running/Stopped, and Restart or Stop/Start buttons.
+- **Host**: Reboot or Shut down the printer's computer.
+
+Everything except *Start* asks for confirmation.
 
 ### Camera
 Opens the printer's first webcam (from Moonraker's webcam list) fullscreen. **Tap anywhere to close it.** The bottom strip shows the job status, resolution and frame rate.

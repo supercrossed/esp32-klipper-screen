@@ -131,9 +131,15 @@ lv_obj_t *ui_section_title(lv_obj_t *parent, const char *txt)
     return ui_label(parent, FONT_S, COL_MUTED, txt);
 }
 
+static lv_obj_t *s_toast;
+static void toast_deleted(lv_event_t *e) { if (lv_event_get_target(e) == s_toast) s_toast = NULL; }
+
 void ui_toast(const char *msg)
 {
+    if (s_toast) lv_obj_delete(s_toast);   /* one at a time: newest replaces the previous */
     lv_obj_t *t = lv_obj_create(lv_layer_top());
+    s_toast = t;
+    lv_obj_add_event_cb(t, toast_deleted, LV_EVENT_DELETE, NULL);
     lv_obj_set_size(t, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(t, COL_CARD2, 0);
     lv_obj_set_style_border_color(t, COL_ACCENT, 0);
@@ -302,7 +308,9 @@ static void numpad_btn(lv_event_t *e)
     if (!strcmp(txt, LV_SYMBOL_BACKSPACE)) lv_textarea_delete_char(c->ta);
     else if (!strcmp(txt, "Cancel")) numpad_close(c);
     else if (!strcmp(txt, "Set")) {
-        float v = strtof(lv_textarea_get_text(c->ta), NULL);
+        const char *in = lv_textarea_get_text(c->ta);
+        if (!in[0]) { numpad_close(c); return; }   /* nothing typed: don't turn the heater off */
+        float v = strtof(in, NULL);
         ui_numpad_cb_t cb = c->cb;
         void *user = c->user;
         numpad_close(c);
@@ -485,7 +493,8 @@ static void tick_cb(lv_timer_t *t)
     if (printers_last_result(res, sizeof(res))) ui_toast(res);
 
     /* green "Update" in the top bar whenever a newer release is known */
-    bool upd = updater_state() == UPD_AVAILABLE;
+    upd_state_t us = updater_state();
+    bool upd = updater_update_known() && us != UPD_INSTALLING && us != UPD_DONE;
     if (upd == lv_obj_has_flag(s_upd_btn, LV_OBJ_FLAG_HIDDEN)) {
         if (upd) lv_obj_remove_flag(s_upd_btn, LV_OBJ_FLAG_HIDDEN);
         else lv_obj_add_flag(s_upd_btn, LV_OBJ_FLAG_HIDDEN);

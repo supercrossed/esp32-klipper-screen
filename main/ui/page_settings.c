@@ -214,11 +214,11 @@ static void refresh_grid(void)
     snprintf(t, sizeof(t), "%s  -  v%s", g_settings.device_name, esp_app_get_description()->version);
     ui_set_text(s_sum[SEC_DEVICE], t);
     updater_get(&s_upd);
-    if (s_upd.state == UPD_AVAILABLE) snprintf(t, sizeof(t), "Version %s available", s_upd.latest);
+    if (s_upd.available) snprintf(t, sizeof(t), "Version %s available", s_upd.latest);
     else if (s_upd.state == UPD_CHECKING) strcpy(t, "Checking...");
     else snprintf(t, sizeof(t), "Up to date  -  v%s", s_upd.current);
     ui_set_text(s_sum[SEC_UPDATES], t);
-    lv_obj_set_style_text_color(s_sum[SEC_UPDATES], s_upd.state == UPD_AVAILABLE ? COL_OK : COL_MUTED, 0);
+    lv_obj_set_style_text_color(s_sum[SEC_UPDATES], s_upd.available ? COL_OK : COL_MUTED, 0);
 }
 
 /* ── sections ────────────────────────────────────────────────────────── */
@@ -351,7 +351,7 @@ static void refresh_updates(void)
              s_upd.current, s_upd.latest[0] ? s_upd.latest : "-", when, st);
     ui_set_text(s_info, t);
     lv_obj_set_style_text_color(s_info, s_upd.state == UPD_ERROR ? COL_ERR : COL_TEXT, 0);
-    int key = s_upd.state == UPD_AVAILABLE ? 1 : 0;
+    int key = s_upd.available ? 1 : 0;
     if (key != s_upd_shown) {
         s_upd_shown = key;
         lv_obj_clean(s_upd_btns);

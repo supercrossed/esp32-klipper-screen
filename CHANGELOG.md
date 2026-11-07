@@ -2,6 +2,27 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
+## [0.3.0] - 2026-11-07
+
+### Added
+- **Console.** See the printer's Klipper console and send commands, just like in Mainsail or Fluidd. Shortcut buttons for common commands.
+- **System controls.** Restart Klipper or the printer's firmware, restart, stop or start services (Klipper, Moonraker, Crowsnest, KlipperScreen and so on), and reboot or shut down the printer's computer. Every risky action asks first.
+- A **second menu on the right** of each printer page, for Camera, Spools, Console and System. More features will appear here.
+
+### Changed
+- Emergency stop and quick controls are now at the top of the Status page, so they're always visible.
+- Moving and extruding no longer leave the printer in relative mode afterwards.
+- Fewer pop-up messages: moving, extruding and setting temperatures only show a message if something goes wrong. Messages now say which printer they're about.
+- If an update fails, you can try again straight away.
+
+### Fixed
+- Long macro names could be cut off and fail to run.
+- Status page text could overlap on smaller layouts.
+- Console messages with special characters showed empty boxes.
+- An empty temperature entry no longer turns the heater off.
+- Opening the camera right after closing it could fail.
+- Status labels are readable on every status colour.
+
 ## [0.2.0] - 2026-11-07
 
 ### Added
@@ -38,5 +59,6 @@ First public release.
 - USB serial console for headless setup and debugging.
 - Web installer (GitHub Pages) and CI release builds.
 
+[0.3.0]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.3.0
 [0.2.0]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.2.0
 [0.1.0]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.1.0

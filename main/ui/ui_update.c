@@ -18,6 +18,7 @@ static void close_dialog(void)
 }
 
 static void later_cb(lv_event_t *e) { close_dialog(); }
+static void confirm_cb(lv_event_t *e);
 
 static void progress_tick(lv_timer_t *t)
 {
@@ -33,8 +34,11 @@ static void progress_tick(lv_timer_t *t)
         snprintf(b, sizeof(b), ICON_ALERT "  %s", s_info.error);
         lv_obj_set_style_text_color(s_status, COL_ERR, 0);
         lv_obj_clean(s_buttons);
+        lv_obj_set_flex_flow(s_buttons, LV_FLEX_FLOW_ROW);
         lv_obj_t *c = ui_button(s_buttons, ICON_CLOSE, "Close", COL_CARD2, later_cb, NULL);
         lv_obj_set_flex_grow(c, 1);
+        lv_obj_t *r = ui_button(s_buttons, ICON_RESTART, "Try again", COL_OK, confirm_cb, NULL);
+        lv_obj_set_flex_grow(r, 1);
         lv_timer_delete(s_timer);
         s_timer = NULL;
     } else return;
@@ -45,11 +49,11 @@ static void confirm_cb(lv_event_t *e)
 {
     updater_install();
     lv_obj_clean(s_buttons);
+    lv_obj_set_flex_flow(s_buttons, LV_FLEX_FLOW_COLUMN);
     s_bar = lv_bar_create(s_buttons);
     lv_obj_set_size(s_bar, LV_PCT(100), 22);
     lv_bar_set_range(s_bar, 0, 100);
     lv_obj_set_style_bg_color(s_bar, COL_OK, LV_PART_INDICATOR);
-    lv_obj_set_flex_flow(s_buttons, LV_FLEX_FLOW_COLUMN);
     s_status = ui_label(s_buttons, FONT_M, COL_TEXT, "Starting download...");
     ui_label(s_buttons, FONT_S, COL_MUTED, "Keep the display powered. It restarts by itself when done.");
     s_timer = lv_timer_create(progress_tick, 250, NULL);
@@ -59,7 +63,7 @@ void ui_update_dialog(void)
 {
     close_dialog();
     updater_get(&s_info);
-    if (s_info.state != UPD_AVAILABLE) return;
+    if (!s_info.available || s_info.state == UPD_INSTALLING || s_info.state == UPD_DONE) return;
 
     s_overlay = lv_obj_create(lv_layer_top());
     lv_obj_set_size(s_overlay, LV_PCT(100), LV_PCT(100));

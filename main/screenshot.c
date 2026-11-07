@@ -118,7 +118,10 @@ static lv_point_t s_tap;
 /* Runs on the LVGL task: click handlers may build whole pages. */
 static void tap_async(void *arg)
 {
-    lv_obj_t *o = lv_indev_search_obj(lv_layer_top(), &s_tap);
+    lv_obj_t *o = NULL;
+    lv_obj_t *top = lv_layer_top();
+    for (int i = (int)lv_obj_get_child_count(top) - 1; i >= 0 && !o; i--)   /* newest overlay first */
+        o = lv_indev_search_obj(lv_obj_get_child(top, i), &s_tap);
     if (!o) o = lv_indev_search_obj(lv_screen_active(), &s_tap);
     while (o && !lv_obj_has_flag(o, LV_OBJ_FLAG_CLICKABLE)) o = lv_obj_get_parent(o);
     if (o) lv_obj_send_event(o, LV_EVENT_CLICKED, NULL);

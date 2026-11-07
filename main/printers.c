@@ -166,7 +166,7 @@ typedef struct {
     mmu_type_t mmu;
     heater_t heaters[MAX_HEATERS];
     int nheaters;
-    char macros[MAX_MACROS][28];
+    char macros[MAX_MACROS][40];
     int nmacros;
     bool has_qgl, has_ztilt, has_bed_mesh;
 } poll_ctx_t;
@@ -288,7 +288,9 @@ static bool discover_objects(poll_ctx_t *c)
             q_append(&ql, &lcap, o, settable ? "temperature,target" : "temperature");
         } else if (!strncmp(o, "gcode_macro ", 12)) {
             const char *m = o + 12;
-            if (m[0] != '_' && c->nmacros < MAX_MACROS) strlcpy(c->macros[c->nmacros++], m, sizeof(c->macros[0]));
+            /* never truncate: a cut-off name would run the wrong (or no) macro */
+            if (m[0] != '_' && c->nmacros < MAX_MACROS && strlen(m) < sizeof(c->macros[0]))
+                strlcpy(c->macros[c->nmacros++], m, sizeof(c->macros[0]));
         } else if (!strcmp(o, "quad_gantry_level")) {
             c->has_qgl = true;
         } else if (!strcmp(o, "z_tilt")) {
@@ -351,6 +353,7 @@ static void parse_afc(poll_ctx_t *c, const cJSON *status, mmu_info_t *m)
     const cJSON *afc = cJSON_GetObjectItem(status, "AFC");
     m->type = MMU_AFC;
     m->nlanes = 0;
+    m->action[0] = 0;
     char cur[32] = "";
     if (afc) {
         jstr(afc, "current_load", cur, sizeof(cur));
@@ -410,6 +413,8 @@ static void parse_hh(const cJSON *status, mmu_info_t *m)
     const cJSON *mmu = cJSON_GetObjectItem(status, "mmu");
     m->type = MMU_HAPPY_HARE;
     m->nlanes = 0;
+    m->action[0] = 0;
+    m->filament[0] = 0;
     if (!mmu) return;
     int gate = (int)jnum(mmu, "gate", -1);
     int tool = (int)jnum(mmu, "tool", -1);
@@ -945,20 +950,22 @@ typedef struct {
     printer_cfg_t cfg;
     printer_cmd_t cmd;
     char gcode[256];
+    char label[40];     /* what the toast calls it */
+    bool quiet;         /* only report failures */
     int slot;
 } cmd_job_t;
 
 static void cmd_task(void *arg)
 {
     cmd_job_t *job = arg;
-    char path[400], enc[300];
+    char path[900], enc[800];
     const char *what = "Command";
     int timeout = 10000;
     switch (job->cmd) {
     case CMD_GCODE:
         url_encode(job->gcode, enc, sizeof(enc), 0);
         snprintf(path, sizeof(path), "/printer/gcode/script?script=%s", enc);
-        what = job->gcode;
+        what = job->label;
         timeout = 180000;   /* G28/QGL/etc. block until finished */
         break;
     case CMD_PAUSE:  strcpy(path, "/printer/print/pause");  what = "Pause"; break;
@@ -967,8 +974,21 @@ static void cmd_task(void *arg)
     case CMD_ESTOP:  strcpy(path, "/printer/emergency_stop"); what = "Emergency stop"; break;
     case CMD_FIRMWARE_RESTART: strcpy(path, "/printer/firmware_restart"); what = "Firmware restart"; break;
     case CMD_KLIPPER_RESTART:  strcpy(path, "/printer/restart"); what = "Restart"; break;
+    case CMD_SERVICE_RESTART:
+    case CMD_SERVICE_STOP:
+    case CMD_SERVICE_START:
+        url_encode(job->gcode, enc, sizeof(enc), 0);
+        snprintf(path, sizeof(path), "/machine/services/%s?service=%s",
+                 job->cmd == CMD_SERVICE_RESTART ? "restart" : job->cmd == CMD_SERVICE_STOP ? "stop" : "start", enc);
+        snprintf(job->label, sizeof(job->label), "%s %s",
+                 job->cmd == CMD_SERVICE_RESTART ? "Restart" : job->cmd == CMD_SERVICE_STOP ? "Stop" : "Start", job->gcode);
+        what = job->label;
+        timeout = 30000;
+        break;
+    case CMD_HOST_REBOOT:   strcpy(path, "/machine/reboot"); what = "Host reboot"; break;
+    case CMD_HOST_SHUTDOWN: strcpy(path, "/machine/shutdown"); what = "Host shutdown"; break;
     }
-    char url[512];
+    char url[1024];
     snprintf(url, sizeof(url), "http://%s:%u%s", job->cfg.host, job->cfg.port, path);
     esp_http_client_handle_t conn = NULL;
     http_buf_t buf = { .max = 32 * 1024 };
@@ -976,8 +996,15 @@ static void cmd_task(void *arg)
     http_conn_close(&conn);
 
     char res[160];
+    bool report = true;
     if (st == 200) {
-        snprintf(res, sizeof(res), "%s: OK", what);
+        snprintf(res, sizeof(res), "%s: %s done", job->cfg.name, what);
+        report = !job->quiet;
+    } else if (st < 0 && (job->cmd == CMD_HOST_REBOOT || job->cmd == CMD_HOST_SHUTDOWN ||
+                          (job->cmd >= CMD_SERVICE_RESTART && job->cmd <= CMD_SERVICE_START &&
+                           !strcasecmp(job->gcode, "moonraker")))) {
+        /* these take the connection down with them: no reply is the expected outcome */
+        snprintf(res, sizeof(res), "%s: %s sent", job->cfg.name, what);
     } else if (st < 0) {
         snprintf(res, sizeof(res), "%s: no response from %s", what, job->cfg.name);
     } else {
@@ -985,20 +1012,22 @@ static void cmd_task(void *arg)
         cJSON *j = buf.data ? cJSON_ParseWithLength((char *)buf.data, buf.len) : NULL;
         jstr(cJSON_GetObjectItem(j, "error"), "message", msg, sizeof(msg));
         cJSON_Delete(j);
-        snprintf(res, sizeof(res), "%s failed: %s", what, msg[0] ? msg : "HTTP error");
+        snprintf(res, sizeof(res), "%s: %s failed - %s", job->cfg.name, what, msg[0] ? msg : "HTTP error");
     }
     http_buf_free(&buf);
     ESP_LOGI(TAG, "%s", res);
     LOCK();
-    strlcpy(s_result, res, sizeof(s_result));
-    s_result_new = true;
+    if (report) {
+        strlcpy(s_result, res, sizeof(s_result));
+        s_result_new = true;
+    }
     if (job->slot >= 0 && s_slots[job->slot].task) xTaskNotifyGive(s_slots[job->slot].task);
     UNLOCK();
     free(job);
     vTaskDeleteWithCaps(NULL);
 }
 
-void printers_command(int idx, printer_cmd_t cmd, const char *gcode)
+static void submit(int idx, printer_cmd_t cmd, const char *gcode, const char *label, bool quiet)
 {
     if (idx < 0 || idx >= s_count) return;
     cmd_job_t *job = calloc(1, sizeof(*job));
@@ -1008,9 +1037,24 @@ void printers_command(int idx, printer_cmd_t cmd, const char *gcode)
     job->cfg = s_slots[job->slot].cfg;
     UNLOCK();
     job->cmd = cmd;
+    job->quiet = quiet;
     if (gcode) strlcpy(job->gcode, gcode, sizeof(job->gcode));
+    if (label && label[0]) strlcpy(job->label, label, sizeof(job->label));
+    else if (gcode) {   /* default label: first word of the G-code */
+        size_t n = strcspn(gcode, " \n");
+        if (n >= sizeof(job->label)) n = sizeof(job->label) - 1;
+        memcpy(job->label, gcode, n);
+        job->label[n] = 0;
+    }
     /* E-stop gets top priority. */
     if (xTaskCreateWithCaps(cmd_task, "cmd", 6144, job, cmd == CMD_ESTOP ? 8 : 5, NULL, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) != pdPASS) free(job);
+}
+
+void printers_command(int idx, printer_cmd_t cmd, const char *gcode) { submit(idx, cmd, gcode, NULL, false); }
+
+void printers_gcode(int idx, const char *gcode, const char *label, bool quiet)
+{
+    submit(idx, CMD_GCODE, gcode, label, quiet);
 }
 
 bool printers_last_result(char *out, size_t cap)

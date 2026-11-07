@@ -24,6 +24,7 @@
 | `main/spoolman.c` | Spoolman over Moonraker's proxy |
 | `main/tz.c` | POSIX time-zone table and ip-api.com lookup |
 | `main/updater.c` | GitHub Releases check, HTTPS OTA into the inactive slot, rollback confirmation |
+| `main/machine.c` | Console history and system services, polled only while those tabs are open |
 | `main/screenshot.c` | On-demand screenshot server (`shot` command) and simulated taps |
 | `main/serial_console.c` | USB-UART debug console |
 | `main/lv_mem_psram.c` | LVGL allocator in PSRAM |

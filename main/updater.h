@@ -22,6 +22,7 @@ typedef struct {
     int progress;          /* 0..100 while installing */
     char error[96];
     time_t checked_at;     /* 0 = never */
+    bool available;        /* a newer release is known (stays true after a failed install) */
 } upd_info_t;
 
 void updater_init(void);           /* auto-check ~1 min after boot, then every 6 h */
@@ -29,3 +30,4 @@ void updater_check_now(void);
 void updater_install(void);        /* only when state == UPD_AVAILABLE */
 void updater_get(upd_info_t *out); /* copy current state (UI thread) */
 upd_state_t updater_state(void);   /* cheap */
+bool updater_update_known(void);   /* a newer release has been seen */

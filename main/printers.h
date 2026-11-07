@@ -114,7 +114,7 @@ typedef struct {
 
     /* capabilities found in /printer/objects/list */
     int      nmacros;
-    char     macros[MAX_MACROS][28];   /* user macros (names starting with '_' hidden) */
+    char     macros[MAX_MACROS][40];   /* user macros (names starting with '_' hidden) */
     bool     has_qgl, has_ztilt, has_bed_mesh;
     bool     has_spoolman;             /* Moonraker [spoolman] configured */
     bool     spoolman_connected;
@@ -149,9 +149,13 @@ void printers_set_focus(int idx);
 typedef enum {
     CMD_GCODE = 0, CMD_PAUSE, CMD_RESUME, CMD_CANCEL, CMD_ESTOP,
     CMD_FIRMWARE_RESTART, CMD_KLIPPER_RESTART,
+    /* Moonraker machine API; gcode = service name for the SERVICE_* commands */
+    CMD_SERVICE_RESTART, CMD_SERVICE_STOP, CMD_SERVICE_START, CMD_HOST_REBOOT, CMD_HOST_SHUTDOWN,
 } printer_cmd_t;
 
 void printers_command(int idx, printer_cmd_t cmd, const char *gcode);
+/* G-code with a friendly name for the result toast; quiet = only toast on failure. */
+void printers_gcode(int idx, const char *gcode, const char *label, bool quiet);
 /* Last command result text for the UI toast (returns true once per new result). */
 bool printers_last_result(char *out, size_t cap);
 

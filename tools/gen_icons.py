@@ -81,6 +81,9 @@ ICONS = {
     "LIST":         "format-list-bulleted",
     "UPDATE":       "cloud-download-outline",
     "NEW":          "new-box",
+    "CONSOLE":      "console-line",
+    "SERVER":       "server",
+    "SEND":         "send",
 }
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

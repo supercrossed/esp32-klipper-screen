@@ -38,6 +38,9 @@ static int s_tick;
 static bool s_long;            /* a long-press also produces CLICKED on release: swallow it */
 
 /* ── events ──────────────────────────────────────────────────────────── */
+static void tile_pressed(lv_event_t *e) { s_long = false; }   /* each touch starts fresh */
+
+
 static void tile_click(lv_event_t *e)
 {
     if (s_long) { s_long = false; return; }
@@ -120,6 +123,7 @@ static void build_tile(int i)
     lv_obj_set_style_bg_color(t->card, COL_CARD2, LV_STATE_PRESSED);
     lv_obj_add_event_cb(t->card, tile_click, LV_EVENT_CLICKED, (void *)(intptr_t)i);
     lv_obj_add_event_cb(t->card, tile_long, LV_EVENT_LONG_PRESSED, (void *)(intptr_t)i);
+    lv_obj_add_event_cb(t->card, tile_pressed, LV_EVENT_PRESSED, NULL);
 
     /* 1: name + status */
     lv_obj_t *r1 = box(t->card, LV_FLEX_FLOW_ROW);
@@ -227,6 +231,7 @@ static void update_tile(int i)
     if ((int)s_st.status != t->status) {
         t->status = s_st.status;
         lv_obj_set_style_bg_color(t->chip, ui_status_color(s_st.status), 0);
+        lv_obj_set_style_text_color(t->chip_lbl, ui_contrast(ui_status_color(s_st.status)), 0);
         ui_set_text(t->chip_lbl, printer_status_str(s_st.status));
         lv_obj_set_style_opa(t->card, s_st.status == PS_OFFLINE ? LV_OPA_60 : LV_OPA_COVER, 0);
     }
