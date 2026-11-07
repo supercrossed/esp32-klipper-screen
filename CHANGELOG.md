@@ -2,7 +2,15 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
-## [0.4.4] - 2026-11-07
+## [0.4.5] - 2026-11-07
+
+### Fixed
+- Wi-Fi is reliable again. Printers connect, scanning for printers no longer restarts the screen, and the update check reaches GitHub again.
+- The Console tab, the webcam and online updates no longer crash the screen. Wi-Fi data now goes through the board's large external memory, so a burst of data or many connections at once can't run the small internal memory out.
+
+Note: 0.4.3 and 0.4.4 had connection problems and are marked as pre-releases. If your screen is on 0.4.3, its updater may not reach GitHub; install 0.4.5 over USB with the web installer (your settings are kept).
+
+## [0.4.4] - 2026-11-07 (pre-release, replaced by 0.4.5)
 
 ### Fixed
 - Wi-Fi is reliable again. 0.4.3's crash fix made the connection drop data, so updates, the time sync and some printer requests could fail. The crash fix now works a different way: incoming Wi-Fi data goes into the large external memory instead of the small internal one.
@@ -102,6 +110,7 @@ First public release.
 - USB serial console for headless setup and debugging.
 - Web installer (GitHub Pages) and CI release builds.
 
+[0.4.5]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.5
 [0.4.4]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.4
 [0.4.3]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.3
 [0.4.2]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.2
