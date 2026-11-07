@@ -75,7 +75,7 @@ Everything except *Start* asks for confirmation.
 Lifetime totals (jobs, print time, filament) and the last 50 jobs with result, date, duration and filament.
 
 ### Mesh (right bar)
-Shown when the printer has `[bed_mesh]`. A colour map of the probed mesh, seen from above with the front at the bottom: blue is low, green is level, red is high. You also get the range, saved profiles (tap to load), **Calibrate** (homes first if needed, and asks before starting) and **Clear**.
+Shown when the printer has `[bed_mesh]`. **3D** draws the bed with the probed mesh on it as a coloured surface (blue is low, red is high), with the height exaggerated so small differences show. Drag to turn and tilt it, tap a probe point to read its X / Y / Z, and tap **Reset view** to go back to the default angle. **Top** shows one tile per probe point with its value, front of the bed at the bottom. Both have a colour scale with the lowest and highest values. You also get the range, saved profiles (tap to load), **Calibrate** (homes first if needed, and asks before starting) and **Clear**.
 
 ### Camera
 Opens the printer's webcam fullscreen; if it has several, you pick one first. **Tap anywhere to close it.** The bottom strip shows the job status, resolution and frame rate.

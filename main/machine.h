@@ -40,6 +40,8 @@ typedef struct {
     int   rows, cols;                 /* probed matrix size (0 = no mesh loaded) */
     float z[MESH_MAX][MESH_MAX];      /* [row = y][col = x] */
     float min_x, min_y, max_x, max_y;
+    bool  has_bed;                    /* bed_* valid (toolhead axis limits) */
+    float bed_min_x, bed_min_y, bed_max_x, bed_max_y;
     char  profile[24];                /* active profile name */
     char  profiles[8][24];            /* saved profiles */
     int   nprofiles;

@@ -70,6 +70,7 @@
 #define ICON_TUNE         "\xF3\xB1\x95\x82"   /* mdi-tune-variant */
 #define ICON_HISTORY      "\xF3\xB0\x8B\x9A"   /* mdi-history */
 #define ICON_MESH         "\xF3\xB0\x8B\x81"   /* mdi-grid */
+#define ICON_CUBE         "\xF3\xB0\x91\xA4"   /* mdi-rotate-3d-variant */
 #define ICON_PALETTE      "\xF3\xB0\xB8\x8C"   /* mdi-palette-outline */
 #define ICON_BELL         "\xF3\xB0\x82\x9C"   /* mdi-bell-outline */
 #define ICON_SUN          "\xF3\xB0\x96\x99"   /* mdi-weather-sunny */

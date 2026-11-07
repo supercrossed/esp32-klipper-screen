@@ -2,6 +2,11 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
+## [0.4.6] - 2026-11-07
+
+### Added
+- **3D bed mesh view.** The Mesh tab now shows the bed in 3D, like Mainsail's heightmap: a coloured surface on the bed with the probe points marked, and the height exaggerated so small differences are easy to see. Drag to turn and tilt it, tap a point to read its exact height, and use **Reset view** to go back. **Top** shows the flat grid with values. Both have a colour scale with the lowest and highest point.
+
 ## [0.4.5] - 2026-11-07
 
 ### Fixed
@@ -110,6 +115,7 @@ First public release.
 - USB serial console for headless setup and debugging.
 - Web installer (GitHub Pages) and CI release builds.
 
+[0.4.6]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.6
 [0.4.5]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.5
 [0.4.4]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.4
 [0.4.3]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.3

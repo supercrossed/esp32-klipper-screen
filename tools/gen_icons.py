@@ -88,6 +88,7 @@ ICONS = {
     "TUNE":         "tune-variant",
     "HISTORY":      "history",
     "MESH":         "grid",
+    "CUBE":         "rotate-3d-variant",
     "PALETTE":      "palette-outline",
     "BELL":         "bell-outline",
     "SUN":          "weather-sunny",

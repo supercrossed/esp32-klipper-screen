@@ -226,10 +226,22 @@ static void fetch_history(esp_http_client_handle_t *conn, http_buf_t *b, const p
 static void fetch_mesh(esp_http_client_handle_t *conn, http_buf_t *b, const printer_cfg_t *pc, uint32_t gen)
 {
     cJSON *j;
-    get(conn, b, pc, "/printer/objects/query?bed_mesh", &j);
+    get(conn, b, pc, "/printer/objects/query?bed_mesh&toolhead=axis_minimum,axis_maximum", &j);
     if (!j) return;
-    const cJSON *bm = cJSON_GetObjectItem(cJSON_GetObjectItem(cJSON_GetObjectItem(j, "result"), "status"), "bed_mesh");
+    const cJSON *stt = cJSON_GetObjectItem(cJSON_GetObjectItem(j, "result"), "status");
+    const cJSON *bm = cJSON_GetObjectItem(stt, "bed_mesh");
     mesh_t *m = heap_caps_calloc(1, sizeof(mesh_t), MALLOC_CAP_SPIRAM);
+    if (m) {   /* bed size for the 3D view: the X/Y travel limits */
+        const cJSON *th = cJSON_GetObjectItem(stt, "toolhead");
+        const cJSON *amin = cJSON_GetObjectItem(th, "axis_minimum"), *amax = cJSON_GetObjectItem(th, "axis_maximum");
+        if (cJSON_GetArraySize(amin) >= 2 && cJSON_GetArraySize(amax) >= 2) {
+            m->bed_min_x = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(amin, 0));
+            m->bed_min_y = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(amin, 1));
+            m->bed_max_x = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(amax, 0));
+            m->bed_max_y = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(amax, 1));
+            m->has_bed = m->bed_max_x > m->bed_min_x && m->bed_max_y > m->bed_min_y;
+        }
+    }
     if (m && bm) {
         const cJSON *pn = cJSON_GetObjectItem(bm, "profile_name");
         if (cJSON_IsString(pn)) strlcpy(m->profile, pn->valuestring, sizeof(m->profile));

@@ -4,6 +4,7 @@
  * Only the selected tab's widgets exist; switching tabs deletes the old ones.
  */
 #include "ui.h"
+#include "mesh_view.h"
 #include "icons.h"
 #include "ui_thumb.h"
 #include <stdio.h>
@@ -1290,16 +1291,6 @@ static void mesh_clear_cb(lv_event_t *e)
     do_mesh_cmd(NULL);
 }
 
-static lv_color_t mesh_color(float z, float span)
-{
-    /* blue (low) -> green (0) -> red (high), relative to the largest deviation */
-    float t = span > 0 ? z / span : 0;
-    if (t < -1) t = -1;
-    if (t > 1) t = 1;
-    if (t < 0) return lv_color_mix(lv_color_hex(0x2F6FDE), lv_color_hex(0x2FBF71), (uint8_t)(-t * 255));
-    return lv_color_mix(lv_color_hex(0xE5484D), lv_color_hex(0x2FBF71), (uint8_t)(t * 255));
-}
-
 static void build_mesh(lv_obj_t *p)
 {
     lv_obj_set_flex_flow(p, LV_FLEX_FLOW_ROW_WRAP);
@@ -1309,12 +1300,11 @@ static void build_mesh(lv_obj_t *p)
     W.mesh_info = ui_label(mc, FONT_M, COL_TEXT, "Loading mesh...");
     lv_label_set_long_mode(W.mesh_info, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(W.mesh_info, LV_PCT(100));
-    W.mesh_grid = lv_obj_create(mc);
-    lv_obj_set_size(W.mesh_grid, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_opa(W.mesh_grid, 0, 0);
-    lv_obj_set_style_border_width(W.mesh_grid, 0, 0);
-    lv_obj_set_style_pad_all(W.mesh_grid, 0, 0);
-    lv_obj_remove_flag(W.mesh_grid, LV_OBJ_FLAG_SCROLLABLE);
+    /* canvas height: what's left of the panel below the info line and toolbar */
+    int vh = ui_is_portrait() ? 420 : ui_height() - 230;
+    if (vh < 280) vh = 280;
+    if (vh > 470) vh = 470;
+    W.mesh_grid = mesh_view_create(mc, vh);
 
     lv_obj_t *ac = card(p, "PROFILES");
     lv_obj_set_width(ac, ui_is_portrait() ? LV_PCT(100) : w - w * 60 / 100);
@@ -1338,7 +1328,6 @@ static void refresh_mesh(bool fresh)
     if (failed) { ui_set_text(W.mesh_info, err); return; }
     if (!s_mesh || !machine_mesh(s_mesh)) return;
     mesh_t *m = s_mesh;
-    lv_obj_clean(W.mesh_grid);
     char b[160];
     if (m->rows < 2) {
         ui_set_text(W.mesh_info, ICON_INFO "  No mesh loaded. Load a profile or calibrate.");
@@ -1349,31 +1338,8 @@ static void refresh_mesh(bool fresh)
         snprintf(b, sizeof(b), "Profile: %s   -   %dx%d points   -   range %.3f mm (%.3f to %+.3f)",
                  m->profile[0] ? m->profile : "(unsaved)", m->cols, m->rows, hi - lo, lo, hi);
         ui_set_text(W.mesh_info, b);
-        float span = fabsf(lo) > fabsf(hi) ? fabsf(lo) : fabsf(hi);
-        lv_obj_update_layout(W.mesh_grid);
-        int gw = lv_obj_get_content_width(W.mesh_grid);
-        int cell = (gw - (m->cols - 1) * 4) / m->cols;
-        if (cell > 64) cell = 64;
-        lv_obj_set_height(W.mesh_grid, m->rows * (cell + 4));
-        for (int r = 0; r < m->rows; r++) {
-            for (int c = 0; c < m->cols; c++) {
-                /* row 0 is the front (min Y): draw it at the bottom, like Mainsail's top view */
-                lv_obj_t *o = lv_obj_create(W.mesh_grid);
-                lv_obj_set_size(o, cell, cell);
-                lv_obj_set_pos(o, c * (cell + 4), (m->rows - 1 - r) * (cell + 4));
-                lv_obj_set_style_radius(o, 6, 0);
-                lv_obj_set_style_border_width(o, 0, 0);
-                lv_obj_set_style_pad_all(o, 0, 0);
-                lv_obj_set_style_bg_color(o, mesh_color(m->z[r][c], span), 0);
-                lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
-                if (cell >= 44) {
-                    snprintf(b, sizeof(b), "%.2f", m->z[r][c]);
-                    lv_obj_t *l = ui_label(o, &lv_font_montserrat_14, lv_color_white(), b);
-                    lv_obj_center(l);
-                }
-            }
-        }
     }
+    mesh_view_set(W.mesh_grid, m);
     lv_obj_clean(W.mesh_prof);
     for (int i = 0; i < m->nprofiles; i++) {
         bool active = !strcmp(m->profiles[i], m->profile);
