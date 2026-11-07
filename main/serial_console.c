@@ -71,6 +71,10 @@ static void handle(char *line)
                (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
                (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
                (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL));
+        extern volatile uint32_t g_hosted_rx_psram_n, g_hosted_rx_psram_max;
+        printf("sdio rx: %u buffers in PSRAM, largest %u bytes; largest internal block %u\n",
+               (unsigned)g_hosted_rx_psram_n, (unsigned)g_hosted_rx_psram_max,
+               (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA));
         char cs[64];
         webcam_status(cs, sizeof(cs));
         printf("webcam: %s\n", cs);

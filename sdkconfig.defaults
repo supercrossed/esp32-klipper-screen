@@ -79,10 +79,10 @@ CONFIG_LV_USE_QRCODE=y
 CONFIG_BSP_ERROR_CHECK=n
 CONFIG_LV_USE_SNAPSHOT=y
 
-# Wi-Fi link (esp_hosted SDIO): read packet by packet. Streaming mode grows one
-# contiguous internal-RAM buffer to the size of each burst and asserts when a big
-# response (console history, file lists) arrives while internal RAM is fragmented.
-CONFIG_ESP_HOSTED_SDIO_OPTIMIZATION_RX_NONE=y
+# Wi-Fi link (esp_hosted SDIO): keep streaming mode (the C6 factory firmware
+# streams; per-packet reads lose data). Its large receive buffer is moved to
+# PSRAM by main/hosted_rx_psram.c.
+CONFIG_ESP_HOSTED_SDIO_OPTIMIZATION_RX_STREAMING_MODE=y
 
 # Task table for the `tasks` console command and the UI watchdog report
 CONFIG_FREERTOS_USE_TRACE_FACILITY=y

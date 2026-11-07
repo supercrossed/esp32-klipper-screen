@@ -2,6 +2,12 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
+## [0.4.4] - 2026-11-07
+
+### Fixed
+- Wi-Fi is reliable again. 0.4.3's crash fix made the connection drop data, so updates, the time sync and some printer requests could fail. The crash fix now works a different way: incoming Wi-Fi data goes into the large external memory instead of the small internal one.
+- This also fixes online updates from 0.4.0, which crashed as soon as the download started.
+
 ## [0.4.3] - 2026-11-07
 
 ### Fixed
@@ -96,6 +102,7 @@ First public release.
 - USB serial console for headless setup and debugging.
 - Web installer (GitHub Pages) and CI release builds.
 
+[0.4.4]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.4
 [0.4.3]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.3
 [0.4.2]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.2
 [0.4.1]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.1
