@@ -277,6 +277,7 @@ static void ta_event(lv_event_t *e)
         }
         lv_keyboard_mode_t mode = (lv_keyboard_mode_t)(uintptr_t)lv_event_get_user_data(e);
         if (mode == LV_KEYBOARD_MODE_NUMBER) mode = LV_KEYBOARD_MODE_USER_1;   /* our numpad has '.' and ':' */
+        if (mode == LV_KEYBOARD_MODE_TEXT_UPPER) mode = LV_KEYBOARD_MODE_USER_2; /* caps lock (G-code) */
         lv_keyboard_set_mode(s_kb, mode);
         lv_keyboard_set_textarea(s_kb, ta);
         s_kb_ta = ta;

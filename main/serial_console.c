@@ -27,6 +27,7 @@
 #include "ui.h"
 #include "webcam.h"
 #include "updater.h"
+#include "sound.h"
 
 bool screenshot_server_start(void);
 bool screenshot_tap(int x, int y);
@@ -121,6 +122,9 @@ static void handle(char *line)
         printf("updater: state=%d current=%s latest=%s size=%u progress=%d err=%s\n", u.state, u.current, u.latest,
                (unsigned)u.size, u.progress, u.error);
         printf("notes: %.300s\n", u.notes);
+    } else if (!strcmp(argv[0], "sound")) {
+        sound_play(argc >= 2 && !strcmp(argv[1], "error") ? SOUND_ERROR : SOUND_DONE);
+        printf("sound queued (volume %d)\n", g_settings.alert_vol);
     } else if (!strcmp(argv[0], "reboot")) {
         esp_restart();
     } else {

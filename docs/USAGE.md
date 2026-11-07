@@ -88,14 +88,14 @@ The top level is a grid of tiles:
 |---|---|
 | **Network** | Connection details (SSID, IP, gateway, signal, MAC) and **Choose a network** |
 | **Printers** | Edit or remove printers, add one, refresh rates |
-| **Display** | Theme (**Dark / Light / Auto** by sunrise and sunset), accent colour, brightness, screen rotation (a rotation change restarts the display), and **alerts** (banner on/off, sound volume, test sound) |
+| **Display** | Theme (**Dark / Light / Auto** by sunrise and sunset), accent colour, brightness, screen rotation (a rotation change restarts the display) |
 | **Time** | Clock and time zone. *Auto* detects it once from your public IP |
 | **Updates** | Installed and latest version, **Check for updates**, **View update** |
-| **Device** | Device name (network hostname), firmware and memory info, Restart, Factory reset |
+| **Device** | Device name (network hostname), **alerts and sound** (banner on/off, volume, test sound), firmware and memory info, Restart, Factory reset |
 
 ## Print alerts
 
-When any printer finishes, fails, is cancelled or stops unexpectedly, a banner slides in at the top with an **Open** button that jumps to that printer, plus a chime: rising for finished, low for a problem. It stays until you dismiss it. Several alerts queue up and show one after another. Turn banners or sound off in *Settings → Display → Alerts*.
+When any printer finishes, fails, is cancelled or stops unexpectedly, a banner slides in at the top with an **Open** button that jumps to that printer, plus a chime: rising for finished, low for a problem. It stays until you dismiss it. Several alerts queue up and show one after another. Turn banners or sound off in *Settings → Device → Alerts & sound*.
 
 ## Updates
 
@@ -105,5 +105,5 @@ When a newer release is out, tap the green **Update** button, or go to *Settings
 
 ## Keyboard
 
-- Text fields use a full keyboard with a number row. `1#` switches to symbols and `ABC` to capitals.
+- Text fields use a full keyboard with a number row. `1#` switches to symbols. The arrow key works like a phone: tap it once for one capital letter, double-tap it for caps lock, and tap again to go back to lower case.
 - Host and port fields open an **IP numpad** with `.` and `:`. Tap `abc` for letters, and `123` to get back to the numpad.

@@ -2,6 +2,15 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
+## [0.4.2] - 2026-11-07
+
+### Fixed
+- Alert sounds and the test sound now play. The speaker setup was redone to match the board maker's own working example.
+
+### Changed
+- Alert and sound settings moved from Settings → Display to **Settings → Device**.
+- Keyboard works like a phone: tap the arrow key for one capital letter, double-tap it for caps lock, tap again to turn it off.
+
 ## [0.4.1] - 2026-11-07
 
 ### Fixed
@@ -80,6 +89,7 @@ First public release.
 - USB serial console for headless setup and debugging.
 - Web installer (GitHub Pages) and CI release builds.
 
+[0.4.2]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.2
 [0.4.1]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.1
 [0.4.0]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.0
 [0.3.0]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.3.0

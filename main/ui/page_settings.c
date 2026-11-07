@@ -363,17 +363,6 @@ static void build_display(lv_obj_t *c)
     dropdown(r, "Landscape\nPortrait\nLandscape (flipped)\nPortrait (flipped)", g_settings.orientation, orient_cb);
     ui_label(g2, FONT_S, COL_MUTED, "Changing the rotation restarts the display.");
 
-    lv_obj_t *g3 = group(c, "ALERTS");
-    r = row(g3, ICON_BELL, "Show when a print finishes or fails");
-    lv_obj_t *as = lv_switch_create(r);
-    lv_obj_set_size(as, 96, 48);
-    if (g_settings.alerts) lv_obj_add_state(as, LV_STATE_CHECKED);
-    lv_obj_add_event_cb(as, alerts_cb, LV_EVENT_VALUE_CHANGED, NULL);
-    r = row(g3, ICON_BELL, "Alert sound");
-    int vi = 0;
-    for (int i = 0; i < 4; i++) if (VOLS[i] == g_settings.alert_vol) vi = i;
-    dropdown(r, "Off\nQuiet\nNormal\nLoud", vi, vol_cb);
-    wide_btn(g3, ICON_BELL, "Test sound", COL_CARD2, test_sound_cb, NULL);
 }
 
 static void build_time(lv_obj_t *c)
@@ -463,6 +452,18 @@ static void build_device(lv_obj_t *c)
     s_info = ui_label(g2, FONT_M, COL_TEXT, "");
     lv_label_set_long_mode(s_info, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(s_info, LV_PCT(100));
+
+    lv_obj_t *ga = group(c, "ALERTS & SOUND");
+    lv_obj_t *r = row(ga, ICON_BELL, "Show when a print finishes or fails");
+    lv_obj_t *as = lv_switch_create(r);
+    lv_obj_set_size(as, 96, 48);
+    if (g_settings.alerts) lv_obj_add_state(as, LV_STATE_CHECKED);
+    lv_obj_add_event_cb(as, alerts_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    r = row(ga, ICON_BELL, "Alert sound");
+    int vi = 0;
+    for (int i = 0; i < 4; i++) if (VOLS[i] == g_settings.alert_vol) vi = i;
+    dropdown(r, "Off\nQuiet\nNormal\nLoud", vi, vol_cb);
+    wide_btn(ga, ICON_BELL, "Test sound", COL_CARD2, test_sound_cb, NULL);
 
     lv_obj_t *g3 = group(c, "MAINTENANCE");
     wide_btn(g3, ICON_RESTART, "Restart", COL_CARD2, reboot_cb, NULL);
