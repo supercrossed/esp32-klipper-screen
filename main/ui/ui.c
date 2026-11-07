@@ -17,6 +17,29 @@
 #include "updater.h"
 #include <math.h>
 #include "esp_timer.h"
+#include "esp_system.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+/* UI watchdog: the LVGL task beats every 250 ms. If it stops for UI_STALL_S
+ * (blocked, not spinning, so the task watchdog never sees it), log the task
+ * table for diagnosis and restart rather than leave a frozen screen. */
+#define UI_STALL_S 20
+static volatile int64_t s_ui_beat;
+
+static void ui_watchdog(void *arg)
+{
+    int64_t beat = s_ui_beat;
+    if (!beat || esp_timer_get_time() - beat < UI_STALL_S * 1000000LL) return;
+    if (updater_state() == UPD_INSTALLING) return;   /* never cut an update short */
+    ESP_LOGE("ui", "screen stopped updating for %d s - restarting", UI_STALL_S);
+    static char list[2048];
+    vTaskList(list);
+    printf("Name          State Prio Stack Num\n%s\n", list);
+    fflush(stdout);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    esp_restart();
+}
 
 static const char *TAG = "ui";
 static void theme_tick(void);
@@ -166,6 +189,39 @@ lv_obj_t *ui_label(lv_obj_t *parent, const lv_font_t *f, lv_color_t c, const cha
     lv_obj_set_style_text_color(l, c, 0);
     lv_label_set_text(l, txt ? txt : "");
     return l;
+}
+
+void ui_list_row(lv_obj_t *row, int min_h)
+{
+    lv_obj_set_size(row, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_style_min_height(row, min_h, 0);
+    lv_obj_set_style_pad_ver(row, 10, 0);
+    lv_obj_set_style_pad_gap(row, 12, 0);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+}
+
+lv_obj_t *ui_two_line(lv_obj_t *row, const lv_font_t *f, lv_color_t c, const char *title, const char *sub)
+{
+    lv_obj_t *col = lv_obj_create(row);
+    lv_obj_set_style_bg_opa(col, 0, 0);
+    lv_obj_set_style_border_width(col, 0, 0);
+    lv_obj_set_style_pad_all(col, 0, 0);
+    lv_obj_set_style_pad_gap(col, 4, 0);
+    lv_obj_set_size(col, 1, LV_SIZE_CONTENT);
+    lv_obj_set_flex_grow(col, 1);
+    lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
+    lv_obj_remove_flag(col, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);   /* taps go to the row */
+    lv_obj_t *l1 = ui_label(col, f, c, title);
+    lv_label_set_long_mode(l1, LV_LABEL_LONG_DOT);
+    lv_obj_set_width(l1, LV_PCT(100));
+    if (sub && sub[0]) {
+        lv_obj_t *l2 = ui_label(col, FONT_S, COL_MUTED, sub);
+        lv_label_set_long_mode(l2, LV_LABEL_LONG_DOT);
+        lv_obj_set_width(l2, LV_PCT(100));
+    }
+    return col;
 }
 
 lv_obj_t *ui_button(lv_obj_t *parent, const char *symbol, const char *txt, lv_color_t bg, lv_event_cb_t cb, void *user)
@@ -568,6 +624,7 @@ static void tick_cb(lv_timer_t *t)
     theme_tick();
     ui_alert_tick();
     if (s_cur && s_cur->refresh) s_cur->refresh();
+    s_ui_beat = esp_timer_get_time();
 }
 
 /* ── init ────────────────────────────────────────────────────────────── */
@@ -609,6 +666,9 @@ void ui_init(lv_display_t *disp)
     lv_display_set_theme(disp, th);
     build_shell();
     lv_timer_create(tick_cb, 250, NULL);
+    const esp_timer_create_args_t wa = { .callback = ui_watchdog, .name = "ui_wdt" };
+    esp_timer_handle_t wt;
+    if (esp_timer_create(&wa, &wt) == ESP_OK) esp_timer_start_periodic(wt, 5 * 1000000LL);
 
     ui_apply_brightness();
     /* First boot (no Wi-Fi saved): go straight to Wi-Fi setup. */

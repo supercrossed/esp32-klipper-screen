@@ -47,6 +47,8 @@ Connect at **115200 baud** to the board's USB-UART, for example with `idf.py -p 
 | `shot` | Start the screenshot server (`http://<ip>:8080/screenshot.bmp`) |
 | `tap <x> <y>` | Simulate a tap |
 | `theme light` / `theme dark` | Switch the theme |
+| `sound` / `sound error` | Play the finished / problem chime |
+| `tasks` | List running tasks and their state (helps with freeze reports) |
 | `reboot` | Restart |
 
 When reporting a crash, include the lines after `Guru Meditation` or `assert failed`, and the output of `status`.

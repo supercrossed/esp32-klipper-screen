@@ -104,23 +104,18 @@ static void rebuild_results(int n)
     for (int i = 0; i < n; i++) {
         disc_result_t *r = &s_res[i];
         lv_obj_t *row = lv_obj_create(s_list);
-        lv_obj_set_size(row, LV_PCT(100), 84);
         lv_obj_set_style_bg_color(row, COL_CARD2, 0);
         lv_obj_set_style_border_width(row, 0, 0);
         lv_obj_set_style_radius(row, 10, 0);
         lv_obj_set_style_pad_hor(row, 14, 0);
-        lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_t *n1 = ui_label(row, FONT_M, COL_TEXT, r->name);
-        lv_obj_align(n1, LV_ALIGN_TOP_LEFT, 0, 4);
+        ui_list_row(row, 80);
         char d[96];
         snprintf(d, sizeof(d), "%s:%u  -  %s  (%s)", r->host, r->port, r->klippy, r->via);
-        lv_obj_t *n2 = ui_label(row, FONT_S, COL_MUTED, d);
-        lv_obj_align(n2, LV_ALIGN_BOTTOM_LEFT, 0, -4);
+        ui_two_line(row, FONT_M, COL_TEXT, r->name, d);
         bool added = printers_find_host(r->host, r->port) >= 0;
         lv_obj_t *b = ui_button(row, added ? ICON_CHECK : ICON_PLUS, added ? "Added" : "Add",
                                 COL_ACCENT, result_add_cb, (void *)(intptr_t)i);
         if (added) lv_obj_add_state(b, LV_STATE_DISABLED);
-        lv_obj_align(b, LV_ALIGN_RIGHT_MID, 0, 0);
     }
 }
 

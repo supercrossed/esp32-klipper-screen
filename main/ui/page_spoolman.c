@@ -183,34 +183,24 @@ static void build_list(void)
     for (int i = 0; i < s_n; i++) {
         const spool_item_t *it = &s_items[i];
         lv_obj_t *r = lv_obj_create(s_list);
-        lv_obj_set_size(r, LV_PCT(100), 84);
+        ui_list_row(r, 80);
         lv_obj_set_style_bg_color(r, COL_CARD2, 0);
         lv_obj_set_style_bg_color(r, COL_BORDER, LV_STATE_PRESSED);
         lv_obj_set_style_border_width(r, 3, 0);
         lv_obj_set_style_border_color(r, i == s_sel ? COL_ACCENT : COL_CARD2, 0);
         lv_obj_set_style_radius(r, 12, 0);
         lv_obj_set_style_pad_hor(r, 12, 0);
-        lv_obj_set_style_pad_ver(r, 6, 0);
-        lv_obj_remove_flag(r, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(r, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(r, row_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
-        lv_obj_t *sw = swatch(r, 44, it);
-        lv_obj_align(sw, LV_ALIGN_LEFT_MID, 0, 0);
+        swatch(r, 44, it);
         char t[96];
         fmt_title(it, t, sizeof(t));
         if (s_kind == 0 && it->id == active) strlcat(t, "   " ICON_CHECK, sizeof(t));
-        lv_obj_t *l1 = ui_label(r, FONT_M, COL_TEXT, t);
-        lv_label_set_long_mode(l1, LV_LABEL_LONG_DOT);
-        lv_obj_set_width(l1, LV_PCT(80));
-        lv_obj_align(l1, LV_ALIGN_TOP_LEFT, 58, 4);
-        char rem[24] = "";
+        char rem[24] = "", sub[128];
         if (s_kind == 0 && it->remaining_g >= 0) snprintf(rem, sizeof(rem), "  -  %.0f g", it->remaining_g);
-        snprintf(t, sizeof(t), "%s%s%s%s%s%s", it->vendor, it->vendor[0] ? "  -  " : "", it->material, rem,
+        snprintf(sub, sizeof(sub), "%s%s%s%s%s%s", it->vendor, it->vendor[0] ? "  -  " : "", it->material, rem,
                  it->location[0] ? "  -  " : "", it->location);
-        lv_obj_t *l2 = ui_label(r, FONT_S, COL_MUTED, t);
-        lv_label_set_long_mode(l2, LV_LABEL_LONG_DOT);
-        lv_obj_set_width(l2, LV_PCT(80));
-        lv_obj_align(l2, LV_ALIGN_BOTTOM_LEFT, 58, -4);
+        ui_two_line(r, FONT_M, COL_TEXT, t, sub);
     }
     if (!s_n) ui_label(s_list, FONT_M, COL_MUTED, s_kind == 0 ? "No spools." : "No filaments.");
     build_detail();

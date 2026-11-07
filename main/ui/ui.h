@@ -73,6 +73,11 @@ int        ui_height(void);           /* content area height (below header) */
 bool       ui_is_portrait(void);
 lv_obj_t  *ui_card(lv_obj_t *parent);
 lv_obj_t  *ui_label(lv_obj_t *parent, const lv_font_t *f, lv_color_t c, const char *txt);
+/* List rows: make `row` a flex row (min height, grows with its text), and add a
+ * title-over-subtitle column that takes the leftover width and ends long text
+ * with "..." instead of running under icons or buttons beside it. */
+void       ui_list_row(lv_obj_t *row, int min_h);
+lv_obj_t  *ui_two_line(lv_obj_t *row, const lv_font_t *f, lv_color_t c, const char *title, const char *sub);
 lv_obj_t  *ui_button(lv_obj_t *parent, const char *symbol, const char *txt, lv_color_t bg, lv_event_cb_t cb, void *user);
 lv_obj_t  *ui_section_title(lv_obj_t *parent, const char *txt);
 lv_obj_t  *ui_tile_button(lv_obj_t *parent, const char *icon, const char *txt, lv_color_t bg, lv_event_cb_t cb, void *user);

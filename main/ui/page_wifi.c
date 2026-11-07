@@ -128,23 +128,18 @@ static void rebuild(int n)
     lv_obj_clean(s_list);
     for (int i = 0; i < n; i++) {
         lv_obj_t *row = lv_obj_create(s_list);
-        lv_obj_set_size(row, LV_PCT(100), 72);
         lv_obj_set_style_bg_color(row, COL_CARD2, 0);
         lv_obj_set_style_bg_color(row, COL_BORDER, LV_STATE_PRESSED);
         lv_obj_set_style_border_width(row, 0, 0);
         lv_obj_set_style_radius(row, 10, 0);
         lv_obj_set_style_pad_hor(row, 16, 0);
-        lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+        ui_list_row(row, 72);
         lv_obj_add_event_cb(row, ap_click, LV_EVENT_CLICKED, (void *)(intptr_t)i);
         bool cur = !strcmp(s_aps[i].ssid, wifi_mgr_ssid()) && wifi_mgr_state() == WIFI_ST_CONNECTED;
-        lv_obj_t *l = ui_label(row, FONT_L, cur ? COL_OK : COL_TEXT, s_aps[i].ssid);
-        lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
-        lv_obj_set_width(l, LV_PCT(70));
-        lv_obj_align(l, LV_ALIGN_LEFT_MID, 0, 0);
+        ui_two_line(row, FONT_L, cur ? COL_OK : COL_TEXT, s_aps[i].ssid, cur ? "Connected" : NULL);
         char r[40];
         snprintf(r, sizeof(r), "%s%s  %d dBm", s_aps[i].secure ? ICON_WIFI_LOCK "  " : "", bars(s_aps[i].rssi), s_aps[i].rssi);
-        lv_obj_t *rl = ui_label(row, FONT_S, COL_MUTED, r);
-        lv_obj_align(rl, LV_ALIGN_RIGHT_MID, 0, 0);
+        ui_label(row, FONT_S, COL_MUTED, r);
     }
 }
 

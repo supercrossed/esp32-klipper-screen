@@ -271,21 +271,17 @@ static void build_printers(lv_obj_t *c)
         printer_cfg_t pc;
         if (!printers_get_cfg(i, &pc)) continue;
         lv_obj_t *b = lv_button_create(g);
-        lv_obj_set_size(b, LV_PCT(100), 80);
+        ui_list_row(b, 80);
         lv_obj_set_style_bg_color(b, COL_CARD2, 0);
         lv_obj_set_style_shadow_width(b, 0, 0);
         lv_obj_set_style_radius(b, 12, 0);
         lv_obj_set_style_text_color(b, COL_TEXT, 0);
         lv_obj_add_event_cb(b, edit_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
-        char t[96];
-        snprintf(t, sizeof(t), ICON_PRINTER "  %s", pc.name);
-        lv_obj_t *l1 = ui_label(b, FONT_M, COL_TEXT, t);
-        lv_obj_align(l1, LV_ALIGN_LEFT_MID, 4, -12);
+        char t[80];
         snprintf(t, sizeof(t), "%s:%u", pc.host, pc.port);
-        lv_obj_t *l2 = ui_label(b, FONT_S, COL_MUTED, t);
-        lv_obj_align(l2, LV_ALIGN_LEFT_MID, 38, 16);
-        lv_obj_t *l3 = ui_label(b, FONT_L, COL_MUTED, ICON_EDIT);
-        lv_obj_align(l3, LV_ALIGN_RIGHT_MID, -4, 0);
+        ui_label(b, FONT_L, COL_MUTED, ICON_PRINTER);
+        ui_two_line(b, FONT_M, COL_TEXT, pc.name, t);
+        ui_label(b, FONT_L, COL_MUTED, ICON_EDIT);
     }
     if (!n) ui_label(g, FONT_M, COL_MUTED, "No printers added yet.");
     wide_btn(g, ICON_PLUS, "Add printer", COL_ACCENT, add_cb, NULL);
