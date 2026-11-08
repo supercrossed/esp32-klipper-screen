@@ -7,6 +7,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project u
 ### Changed
 - **Smoother, faster screens.** Text now draws about 2.5 times faster, so lists scroll much more smoothly, and the screen keeps more memory free for Wi-Fi. The font looks the same.
 - **Smoother webcam.** The camera now plays its live video stream instead of fetching one picture at a time, and the screen downloads the next frame while it shows the current one. A 1080p camera went from under 2 to about 3–6 frames per second; 720p cameras are smoother still. Cameras without a stream still work as before.
+- **More realistic battery %.** The Li-ion curve matched common 18650 cells too pessimistically below about 3.8 V (3.6 V showed under 20%; it's now about 35%). 0% is now the **Turn off when empty** voltage you set, so the number reaches 0 right when the screen turns itself off.
 - **History and Files show the 5 most recent** jobs and files. Files says how many there are in total.
 - **Button labels in the top bar.** ⏻, BOOT and RST sit right under the board's POWER, BOOT and RESET buttons (landscape), so you know which is which in the case.
 - Settings → Time no longer shows the note about time servers.

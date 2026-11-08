@@ -55,11 +55,12 @@ static bat_info_t s_info = { .minutes_left = -1 };
 /* Resting voltage -> charge, down to 3.0 V (the lowest "Turn off when empty"
  * choice). Typical curves; the board has no fuel gauge to do better. */
 typedef struct { int16_t mv, pct; } ocv_pt_t;
-/* Li-ion cylindrical cells (18650 / 21700, NMC-type): flatter, lower middle */
+/* Li-ion cylindrical cells (18650 / 21700, NMC-type, e.g. LG HG2, Samsung
+ * 30Q/35E): long flat middle around 3.6-3.7 V, steep drop below ~3.5 V. */
 static const ocv_pt_t OCV_LIION[] = {
-    { 4200, 100 }, { 4100, 92 }, { 4000, 82 }, { 3920, 72 }, { 3860, 63 }, { 3800, 54 },
-    { 3750, 45 },  { 3710, 37 }, { 3670, 29 }, { 3630, 21 }, { 3590, 14 }, { 3540, 8 },
-    { 3470, 5 },   { 3300, 2 },  { 3000, 0 },
+    { 4190, 100 }, { 4060, 90 }, { 3940, 80 }, { 3850, 70 }, { 3770, 60 }, { 3690, 50 },
+    { 3650, 40 },  { 3610, 30 }, { 3570, 20 }, { 3480, 10 }, { 3400, 6 },  { 3300, 3 },
+    { 3000, 0 },
 };
 /* LiPo pouches: hold a higher voltage through the middle */
 static const ocv_pt_t OCV_LIPO[] = {
@@ -256,7 +257,15 @@ static void bat_task(void *arg)
             if (st == BAT_DISCHARGING) v = ema + load_ma() * cell_mohm() / 1000;
             else if (st == BAT_CHARGING) v = ema - CHARGE_MA * cell_mohm() / 1000;
             else v = 4200;
+            /* 0% = the "Turn off when empty" point, so the number reaches 0 just as
+             * the screen turns itself off. The cut-off is checked on the loaded
+             * voltage, so compare against its resting equivalent. */
             float target = soc_from_mv(v);
+            if (g_settings.bat_cut_mv) {
+                int floor_pct = soc_from_mv(g_settings.bat_cut_mv + load_ma() * cell_mohm() / 1000);
+                if (floor_pct < 100) target = (target - floor_pct) * 100.0f / (100 - floor_pct);
+                if (target < 0) target = 0;
+            }
             if (g_settings.bat_type != last_type) { last_type = g_settings.bat_type; soc_f = -1; shown = -1; }
             soc_f = soc_f < 0 ? target : soc_f + (target - soc_f) * 0.05f;
             /* Keep the number steady: it only climbs while charging and only falls
