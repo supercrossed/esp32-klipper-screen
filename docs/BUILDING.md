@@ -62,7 +62,7 @@ Settings that matter, and why:
 | `BOOTLOADER_APP_ROLLBACK_ENABLE` | automatic rollback of a bad update |
 | `LV_USE_SNAPSHOT` | screenshots (`tools/screenshot.py`) |
 
-**Don't** raise `LWIP_TCP_WND_DEFAULT` / `TCP_SND_BUF` to 64 KB. Under webcam load, esp_hosted runs out of internal DMA memory and asserts (`transport_drv_sta_tx … copy_buff`).
+`LWIP_TCP_WND_DEFAULT` is 64 KB (with `TCP_RECVMBOX_SIZE` 64) so the webcam stream isn't held back by the receive window. This only works because esp_hosted's data buffers are in PSRAM (`main/hosted_rx_psram.c`); without that, big windows run internal DMA memory out and esp_hosted asserts (`copy_buff`). `TCP_SND_BUF` stays at the default.
 
 ## Icons
 

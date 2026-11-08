@@ -70,8 +70,14 @@ CONFIG_LV_FONT_DEFAULT_MONTSERRAT_20=y
 CONFIG_LV_TXT_BREAK_CHARS=" ,.;:-_/"
 
 
-# NOTE: do not raise LWIP_TCP_WND/SND_BUF/RECVMBOX here. Tried 64 KB windows:
-# esp_hosted 1.4 then asserts (transport_drv_sta_tx copy_buff) under webcam load.
+# 64 KB TCP receive window: the webcam MJPEG stream is limited by how much
+# data can be in flight over Wi-Fi (5.7 KB default: ~4.5 Mbit/s, this: ~10-17).
+# Safe now that esp_hosted's data buffers live in PSRAM (main/hosted_rx_psram.c);
+# before that, big windows ran internal DMA memory out (copy_buff assert).
+# The send buffer stays at the default.
+CONFIG_LWIP_TCP_WND_DEFAULT=65535
+CONFIG_LWIP_TCP_RECVMBOX_SIZE=64
+CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=64
 
 CONFIG_LWIP_SNTP_MAX_SERVERS=2
 CONFIG_LWIP_SO_LINGER=y

@@ -16,7 +16,7 @@
 
 - **"Not a JPEG snapshot" / "Camera HTTP 404".** The webcam in Moonraker's list has no snapshot URL the display can use. Set one in Mainsail/Fluidd (for crowsnest: `/webcam/?action=snapshot`).
 - **"JPEG decode failed (progressive?)".** The P4's hardware decoder needs baseline JPEG. ustreamer and mjpg-streamer produce baseline by default.
-- **Low frame rate.** Lower the camera resolution in crowsnest; 720p is a good balance.
+- **Low frame rate.** Lower the camera resolution in crowsnest; 720p matches the screen and plays about three times smoother than 1080p. If the frame rate line says "(snapshots)", the stream URL didn't work and the screen is fetching single pictures, which is slower. Check the camera's stream URL in Mainsail/Fluidd.
 
 ## Updates
 

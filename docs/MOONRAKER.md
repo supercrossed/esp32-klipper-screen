@@ -14,11 +14,11 @@ The display is a regular Moonraker HTTP client. Most installs work with **no cha
 
 ## Webcams
 
-The display reads `GET /server/webcams/list`, the same list Mainsail and Fluidd use, and shows the first enabled camera. The camera needs a JPEG **snapshot URL**. If only a stream URL is configured, `action=stream` / `/stream` is rewritten to the snapshot form. Relative URLs such as `/webcam/?action=snapshot` are resolved against port 80 on the printer's host.
+The display reads `GET /server/webcams/list`, the same list Mainsail and Fluidd use. It plays the camera's **MJPEG stream URL** (such as `/webcam/?action=stream`). If the camera has no stream, or the stream doesn't work, it falls back to fetching the **snapshot URL** over and over. A missing URL is filled in from the other one by swapping `action=stream` ↔ `action=snapshot` or `/stream` ↔ `/snapshot`. Relative URLs are resolved against port 80 on the printer's host.
 
-Works with crowsnest using ustreamer or mjpg-streamer, and with camera-streamer snapshots. Not supported: WebRTC- or HLS-only cameras without a snapshot endpoint, HTTPS camera URLs (rewritten to HTTP), and progressive JPEGs (the P4's hardware decoder only handles baseline).
+Works with crowsnest using ustreamer, mjpg-streamer or camera-streamer. Not supported: WebRTC- or HLS-only cameras without an MJPEG or snapshot endpoint, HTTPS camera URLs (rewritten to HTTP), and progressive JPEGs (the P4's hardware decoder only handles baseline).
 
-Frame rate depends on the camera's resolution. A 1080p camera gives about 1.5–2 fps over Wi-Fi; 720p gives about 4. Lower `resolution:` in `crowsnest.conf` if you want it smoother.
+Frame rate is limited by Wi-Fi: the screen receives roughly 1.2–2 MB/s. A 1080p camera sends about 370 KB per frame, so it plays at about 3–6 fps. At 720p a frame is around a third of that, so it's roughly three times smoother. For the smoothest picture set `resolution: 1280x720` in `crowsnest.conf` (the screen is 1280×720 anyway), and lower the JPEG quality if your streamer has an option for it.
 
 ## Spoolman
 

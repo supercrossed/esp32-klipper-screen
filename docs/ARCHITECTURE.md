@@ -4,7 +4,7 @@
             ┌───────────────── ESP32-P4 ─────────────────┐
  touch ───► │ LVGL task (UI)  ◄─ snapshots ─  pollers ×N │ ── HTTP ──► Moonraker (each printer)
  display ◄─ │   pages: home / printer / webcam / …        │
-            │ webcam task ─► HW JPEG ─► PPA ─► 3 buffers  │ ── HTTP ──► camera snapshot URL
+            │ webcam task ─► HW JPEG ─► PPA ─► 3 buffers  │ ── HTTP ──► camera MJPEG stream
             │ cmd tasks (one per command), discovery task │
             └──────────── esp_wifi_remote / esp_hosted ───┘
                                   │ SDIO
@@ -20,7 +20,7 @@
 | `main/printers.c` | Printer registry (NVS), one **poller task per printer**, Moonraker parsing (status, heaters, AFC/HH, webcams, macros, Spoolman), command tasks |
 | `main/http_util.c` | Keep-alive HTTP helper: growable PSRAM buffer, redirects, retry on stale sockets |
 | `main/discovery.c` | mDNS plus subnet sweep in batches of 9 hosts (sized to lwIP's 10-entry ARP table) |
-| `main/webcam.c` | Snapshot loop → hardware JPEG decode → PPA scale/rotate/mirror → triple buffer |
+| `main/webcam.c` | MJPEG stream reader (snapshot loop as fallback) → hardware JPEG decode → PPA scale/rotate/mirror → triple buffer. A reader task and a decoder task overlap, with two JPEG input buffers |
 | `main/spoolman.c` | Spoolman over Moonraker's proxy |
 | `main/tz.c` | POSIX time-zone table and ip-api.com lookup |
 | `main/updater.c` | GitHub Releases check, HTTPS OTA into the inactive slot, rollback confirmation |
