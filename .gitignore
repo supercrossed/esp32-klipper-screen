@@ -16,3 +16,7 @@ Thumbs.db
 
 # case render scratch (screen quads / masks for overlay_screens.py)
 case/export/_render/
+
+# Fusion design notes (local only)
+case/DESIGN.md
+case/export/BUILD_GUIDE.md
