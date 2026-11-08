@@ -4,14 +4,14 @@ The screen runs in landscape (1280×720) by default. The top bar shows a **Back*
 
 ## Home
 
-Each printer has a tile. Every tile has the same layout:
+Each printer has a tile, sized to be readable from across a desk. With one to four printers there are two columns (one in portrait), and the tiles share the screen height; with five or more there are three columns. Every tile has the same layout:
 
 1. **Name and status**: Idle, Printing, Paused, Complete, Error, Offline or Klipper not ready.
 2. **Address**, with small icons when the printer has an MMU, Spoolman or a camera.
 3. **Job**: the slicer thumbnail (or a printer icon), file name, progress bar, and time left with ETA.
 4. **Temperatures**: hotend, bed and chamber in three columns, orange while heating and `--` when the printer doesn't have one.
 
-**Tap** a tile to open the printer. **Long-press** it to set a nickname. The last tile is **+ Add printer**. When any printer has Spoolman, a **Spoolman** button appears below the tiles.
+**Tap** a tile to open the printer. **Long-press** it to set a nickname. **+ Add printer** is in the bottom bar (a big tile while there are no printers yet). When any printer has Spoolman, a **Spoolman** button appears next to it.
 
 When a new version is available, a green **Update** button appears in the top bar (see [Updates](#updates)).
 

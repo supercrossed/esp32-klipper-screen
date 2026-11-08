@@ -66,7 +66,7 @@ Settings that matter, and why:
 
 ## Icons
 
-Icons are glyphs from the [Material Design Icons](https://pictogrammers.com/library/mdi/) webfont, rendered on the device by LVGL Tiny TTF as a fallback of each Montserrat size. To add one:
+The UI text is [Inter](https://rsms.me/inter/) (`main/ui/fonts`, OFL-1.1), rendered at any size by LVGL Tiny TTF: `FONT_S` to `FONT_XXL` are the regular sizes and `ui_font_bold(px)` gives Inter Bold. Icons are glyphs from the [Material Design Icons](https://pictogrammers.com/library/mdi/) webfont, the fallback of every text font; LVGL's built-in Montserrat comes last, for the `LV_SYMBOL_*` glyphs. To add an icon:
 
 1. Find its name on pictogrammers.com, e.g. `printer-3d-nozzle`.
 2. Add `"MY_ICON": "printer-3d-nozzle"` to `ICONS` in `tools/gen_icons.py`.

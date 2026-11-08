@@ -2,6 +2,17 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
+## [0.4.9] - 2026-11-07
+
+### Changed
+- **Easier to read from a distance.** The whole screen now uses the Inter font, which is clearer at every size, and the important text is bold.
+- **Bigger printer tiles on the home screen.** With up to four printers there are two columns, and the tiles share the full screen height, so names, file names, progress and temperatures are much larger. With one or two printers the tiles are extra large. Five or more printers use three columns.
+- The heating target now shows next to (or under) each temperature, for example **220° /220°**.
+- **Add printer** moved to a button at the bottom of the home screen, next to Spoolman. While there are no printers yet it's still a big tile.
+
+### Fixed
+- The screen could restart when it sent a lot of data at once over Wi-Fi. Outgoing Wi-Fi data now uses the large external memory too, like incoming data since 0.4.5.
+
 ## [0.4.8] - 2026-11-07
 
 ### Fixed
@@ -130,6 +141,7 @@ First public release.
 - USB serial console for headless setup and debugging.
 - Web installer (GitHub Pages) and CI release builds.
 
+[0.4.9]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.9
 [0.4.8]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.8
 [0.4.7]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.7
 [0.4.6]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.6

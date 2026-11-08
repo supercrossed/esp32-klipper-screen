@@ -33,18 +33,33 @@ static void snap_async(void *arg)
     xSemaphoreGive(j->done);
 }
 
+/* One job at a time, kept off the handler's stack: a snapshot that outlives the
+ * timeout still has somewhere valid to write, and the next request collects it. */
+static snap_job_t s_job;
+static bool s_pending;
+
 static esp_err_t shot_handler(httpd_req_t *req)
 {
-    snap_job_t job = { .done = xSemaphoreCreateBinary() };
-    bsp_display_lock(-1);
-    lv_async_call(snap_async, &job);
-    bsp_display_unlock();
-    if (xSemaphoreTake(job.done, pdMS_TO_TICKS(5000)) != pdTRUE) {
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "snapshot timed out");
-        return ESP_FAIL;   /* job is leaked deliberately: the async call may still run */
+    if (!s_job.done) s_job.done = xSemaphoreCreateBinary();
+    if (s_pending) {   /* an earlier snapshot timed out: wait for it, then discard it */
+        if (xSemaphoreTake(s_job.done, pdMS_TO_TICKS(20000)) != pdTRUE) {
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "previous snapshot still running");
+            return ESP_FAIL;
+        }
+        if (s_job.base) lv_draw_buf_destroy(s_job.base);
+        if (s_job.top) lv_draw_buf_destroy(s_job.top);
+        s_pending = false;
     }
-    vSemaphoreDelete(job.done);
-    lv_draw_buf_t *base = job.base, *top = job.top;
+    s_pending = true;
+    bsp_display_lock(-1);
+    lv_async_call(snap_async, &s_job);
+    bsp_display_unlock();
+    if (xSemaphoreTake(s_job.done, pdMS_TO_TICKS(20000)) != pdTRUE) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "snapshot timed out");
+        return ESP_FAIL;
+    }
+    s_pending = false;
+    lv_draw_buf_t *base = s_job.base, *top = s_job.top;
     if (!base) {
         if (top) lv_draw_buf_destroy(top);
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "snapshot failed (out of memory?)");

@@ -60,12 +60,14 @@ lv_color_t ui_contrast(lv_color_t bg);             /* black or white text for a 
 
 /* Montserrat copies whose fallback is the matching Material Design Icons size,
  * so ICON_* (icons.h) and text mix freely in any label. Built by ui_init(). */
-extern lv_font_t g_font_16, g_font_20, g_font_24, g_font_32, g_font_48;
-#define FONT_S   (&g_font_16)
-#define FONT_M   (&g_font_20)
-#define FONT_L   (&g_font_24)
-#define FONT_XL  (&g_font_32)
-#define FONT_XXL (&g_font_48)
+/* Inter (regular) with MDI icons; see fonts_init() in ui.c */
+extern const lv_font_t *g_font_16, *g_font_20, *g_font_24, *g_font_32, *g_font_48;
+#define FONT_S   (g_font_16)
+#define FONT_M   (g_font_20)
+#define FONT_L   (g_font_24)
+#define FONT_XL  (g_font_32)
+#define FONT_XXL (g_font_48)
+const lv_font_t *ui_font_bold(int px);   /* Inter Bold at any size, with icons */
 
 /* ── helpers ─────────────────────────────────────────────────────────── */
 int        ui_width(void);            /* logical content width (after rotation) */

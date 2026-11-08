@@ -131,24 +131,57 @@ lv_color_t ui_contrast(lv_color_t bg)
 /* ── fonts: Montserrat + MDI icon fallback ───────────────────────────── */
 extern const uint8_t mdi_ttf_start[] asm("_binary_mdi_ttf_start");
 extern const uint8_t mdi_ttf_end[] asm("_binary_mdi_ttf_end");
-lv_font_t g_font_16, g_font_20, g_font_24, g_font_32, g_font_48;
+extern const uint8_t inter_r_start[] asm("_binary_inter_regular_ttf_start");
+extern const uint8_t inter_r_end[] asm("_binary_inter_regular_ttf_end");
+extern const uint8_t inter_b_start[] asm("_binary_inter_bold_ttf_start");
+extern const uint8_t inter_b_end[] asm("_binary_inter_bold_ttf_end");
+const lv_font_t *g_font_16, *g_font_20, *g_font_24, *g_font_32, *g_font_48;
 
-static void font_with_icons(lv_font_t *dst, const lv_font_t *base, int px)
+/* Text: Inter (OFL, main/ui/fonts), rendered at any size by Tiny TTF.
+ * Fallbacks: MDI icons (a touch larger than the text so they read as icons),
+ * then LVGL's built-in Montserrat for the LV_SYMBOL_* glyphs (keyboard keys,
+ * dropdown arrows). */
+static const lv_font_t *builtin_for(int px)
 {
-    *dst = *base;
-    /* Icons are a touch larger than the text cap height so they read as icons. */
+    return px < 18 ? &lv_font_montserrat_16 : px < 22 ? &lv_font_montserrat_20 : px < 28 ? &lv_font_montserrat_24
+         : px < 40 ? &lv_font_montserrat_32 : &lv_font_montserrat_48;
+}
+
+static const lv_font_t *make_font(const uint8_t *start, const uint8_t *end, int px)
+{
+    const lv_font_t *builtin = builtin_for(px);
     lv_font_t *icons = lv_tiny_ttf_create_data(mdi_ttf_start, mdi_ttf_end - mdi_ttf_start, px * 6 / 5);
-    if (icons) dst->fallback = icons;
-    else ESP_LOGW(TAG, "icon font %d px failed", px);
+    if (icons) icons->fallback = builtin;
+    lv_font_t *f = lv_tiny_ttf_create_data(start, end - start, px);
+    if (!f) {
+        ESP_LOGW(TAG, "font %d px failed, using the built-in one", px);
+        return icons ? icons : builtin;
+    }
+    f->fallback = icons ? icons : builtin;
+    return f;
 }
 
 static void fonts_init(void)
 {
-    font_with_icons(&g_font_16, &lv_font_montserrat_16, 16);
-    font_with_icons(&g_font_20, &lv_font_montserrat_20, 20);
-    font_with_icons(&g_font_24, &lv_font_montserrat_24, 24);
-    font_with_icons(&g_font_32, &lv_font_montserrat_32, 32);
-    font_with_icons(&g_font_48, &lv_font_montserrat_48, 48);
+    g_font_16 = make_font(inter_r_start, inter_r_end, 16);
+    g_font_20 = make_font(inter_r_start, inter_r_end, 20);
+    g_font_24 = make_font(inter_r_start, inter_r_end, 24);
+    g_font_32 = make_font(inter_r_start, inter_r_end, 32);
+    g_font_48 = make_font(inter_r_start, inter_r_end, 48);
+}
+
+const lv_font_t *ui_font_bold(int px)
+{
+    static struct { int px; const lv_font_t *f; } cache[12];
+    static int n;
+    for (int i = 0; i < n; i++)
+        if (cache[i].px == px) return cache[i].f;
+    const lv_font_t *f = make_font(inter_b_start, inter_b_end, px);
+    if (n < (int)(sizeof(cache) / sizeof(cache[0]))) {
+        cache[n].px = px;
+        cache[n++].f = f;
+    }
+    return f;
 }
 
 #define HEADER_H 68
