@@ -17,9 +17,7 @@ It runs on the [Waveshare ESP32-P4 5″ touch display](https://www.waveshare.com
 
 - **All your printers on one screen.** See what each one is printing, how far along it is, when it'll finish, and its temperatures. Give printers nicknames so you know which is which. The screen updates itself: when a new version is out, one tap installs it.
 - **Add printers easily.** Search your network, or type in the address.
-- **Control a printer.** Pause, resume or cancel prints, set temperatures, home and move the axes, extrude filament, run your macros, or hit the emergency stop.
-- **Fine-tune while printing.** Adjust the Z offset, speed, flow and fan on the fly.
-- **Start prints.** Browse each printer's files with pictures and print times.
+- **Control a printer.** Start a print from its recent files (with pictures and print times), then pause, resume or cancel it. Fine-tune while printing: Z offset, speed, flow and fan. Set temperatures, home and move the axes, extrude filament, run your macros, or hit the emergency stop.
 - **Get told when prints finish.** A banner and a chime when any printer finishes or fails, even if you're looking at another one.
 - **History and bed mesh.** Recent jobs with lifetime totals, and a 3D view of the bed mesh you can turn and tap.
 - **Console.** See the printer's console and type commands, like in Mainsail or Fluidd.
