@@ -15,20 +15,17 @@ It runs on the [Waveshare ESP32-P4 5″ touch display](https://www.waveshare.com
 
 ## What it does
 
-- **All your printers on one screen.** See what each one is printing, how far along it is, when it'll finish, and its temperatures.
-- **Give printers nicknames** so you know which is which.
+- **All your printers on one screen.** See what each one is printing, how far along it is, when it'll finish, and its temperatures. Give printers nicknames so you know which is which. The screen updates itself: when a new version is out, one tap installs it.
 - **Add printers easily.** Search your network, or type in the address.
 - **Control a printer.** Pause, resume or cancel prints, set temperatures, home and move the axes, extrude filament, run your macros, or hit the emergency stop.
 - **Fine-tune while printing.** Adjust the Z offset, speed, flow and fan on the fly.
 - **Start prints.** Browse each printer's files with pictures and print times.
 - **Get told when prints finish.** A banner and a chime when any printer finishes or fails, even if you're looking at another one.
-- **History and bed mesh.** Past jobs with totals, and a colour map of the bed.
+- **History and bed mesh.** Recent jobs with lifetime totals, and a 3D view of the bed mesh you can turn and tap.
 - **Console.** See the printer's console and type commands, like in Mainsail or Fluidd.
 - **System controls.** Restart Klipper, restart services, or reboot and shut down the printer's computer.
 - **Watch the camera** full screen.
-- **Multi-material support** for AFC (Box Turtle) and Happy Hare. See which filament is in each lane and where the loaded one is.
-- **Spoolman support.** Browse your spools and filaments, pick the active spool, and show a spool's QR code to scan.
-- **Updates itself.** When a new version is out, an *Update* button appears. One tap installs it.
+- **Multi-material and Spoolman.** AFC (Box Turtle) and Happy Hare: see which filament is in each lane and where the loaded one is. With Spoolman, browse your spools and filaments, pick the active spool, and show a spool's QR code to scan.
 - **Runs on a battery** too: plug an 18650 or LiPo into the board and the top bar shows its charge.
 - **Looks the way you like.** Light, dark, or automatic by sunrise and sunset, in six accent colours. It also connects to Wi-Fi on first start, keeps the time, and works in landscape or portrait.
 
@@ -65,6 +62,8 @@ Your printers need **Klipper** with **Moonraker**, which comes with Mainsail, Fl
 **Building your own?** A DIY version with a separate ESP32-P4 board, a display and a small Wi-Fi chip is planned. A setup guide and installer for it will be added to the docs.
 
 ## Desk case
+
+![The desk case, exploded: front frame with the screen, body and screws](case/export/build-12-join-frame-to-body.png)
 
 The case in the picture at the top is 3D-printable. It holds the screen at a 20° tilt, with a magnetic bezel, buttons for POWER, BOOT and RESET, and room for a battery. Every part prints without supports.
 
