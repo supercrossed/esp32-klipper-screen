@@ -68,6 +68,7 @@ Your printers need **Klipper** with **Moonraker**, which comes with Mainsail, Fl
 The case in the picture at the top is 3D-printable. It holds the screen at a 20° tilt, with a magnetic bezel, buttons for POWER, BOOT and RESET, and room for a battery. Every part prints without supports.
 
 **[→ Build guide](case/README.md)**: print files, parts list and step-by-step assembly.
+
 ## Getting started
 
 1. Open the **[web installer](https://supercrossed.github.io/esp32-klipper-screen/)** in Chrome or Edge, plug in the display, and click **Install**.
