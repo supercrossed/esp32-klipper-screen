@@ -1,5 +1,6 @@
 /* Files: browse a printer's G-code files (newest first) and start a print. */
 #include "ui.h"
+#include "esp_log.h"
 #include "icons.h"
 #include <stdio.h>
 #include <string.h>
@@ -12,7 +13,8 @@ static int s_idx;
 static int s_sel = -1;
 static uint32_t s_ver;
 static gfile_t *s_list;
-static int s_n;
+static int s_n, s_total;     /* shown, and how many the printer has */
+#define FILES_SHOWN 5           /* only the most recent files are listed */
 static gmeta_t s_meta;              /* details shown on the right (thumb owned here) */
 static lv_image_dsc_t s_dsc;
 static lv_obj_t *s_rows, *s_detail, *s_status, *s_thumb;
@@ -175,7 +177,8 @@ static void build_rows(void)
     lv_obj_clean(s_rows);
     heap_caps_free(s_list);
     s_list = heap_caps_malloc(FILES_MAX * sizeof(gfile_t), MALLOC_CAP_SPIRAM);
-    s_n = s_list ? files_list(s_list, FILES_MAX) : 0;
+    s_total = s_list ? files_list(s_list, FILES_MAX) : 0;
+    s_n = s_total < FILES_SHOWN ? s_total : FILES_SHOWN;   /* newest first: keep the most recent */
     if (s_sel >= s_n) s_sel = -1;
     for (int i = 0; i < s_n; i++) {
         const gfile_t *f = &s_list[i];
@@ -290,6 +293,7 @@ static void refresh(void)
         if (s_sel >= 0 && !s_meta.thumb) build_detail();   /* details for the selected file arrived */
         char t[96];
         if (st == FL_ERROR) snprintf(t, sizeof(t), ICON_ALERT "  %s", err);
+        else if (s_total > s_n) snprintf(t, sizeof(t), "The %d newest of %d files", s_n, s_total);
         else snprintf(t, sizeof(t), "%d file%s  -  newest first", s_n, s_n == 1 ? "" : "s");
         ui_set_text(s_status, t);
     }

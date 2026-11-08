@@ -7,6 +7,10 @@
 #include "nvs_flash.h"
 #include "esp_log.h"
 #include "bsp/esp-bsp.h"
+#include "bsp/touch.h"
+#include "esp_lv_adapter.h"
+#include "esp_lv_adapter_display.h"
+#include "esp_lv_adapter_input.h"
 #include "app_settings.h"
 #include "wifi_mgr.h"
 #include "printers.h"
@@ -16,6 +20,44 @@
 
 static const char *TAG = "main";
 void serial_console_start(void);
+
+/* Draw buffer height in panel lines. The BSP uses 50, which in landscape means
+ * a scrolling list is drawn in ~20 strips per frame, each one walking the
+ * object tree and laying out every visible label again. */
+#define DRAW_BUF_LINES 240
+
+/* Same steps as bsp_display_start_with_config(), with our own draw buffer. */
+static lv_display_t *display_start(const bsp_display_cfg_t *cfg)
+{
+    if (esp_lv_adapter_init(&cfg->lv_adapter_cfg) != ESP_OK) return NULL;
+    if (bsp_display_brightness_init() != ESP_OK) return NULL;
+    esp_lcd_panel_handle_t panel = NULL;
+    esp_lcd_panel_io_handle_t io = NULL;
+    if (bsp_display_new(NULL, &panel, &io) != ESP_OK) return NULL;
+    esp_lv_adapter_display_config_t dc = {
+        .panel = panel,
+        .panel_io = io,
+        .profile = {
+            .interface = ESP_LV_ADAPTER_PANEL_IF_MIPI_DSI,
+            .rotation = cfg->rotation,
+            .hor_res = BSP_LCD_H_RES,
+            .ver_res = BSP_LCD_V_RES,
+            .buffer_height = DRAW_BUF_LINES,
+            .use_psram = true,
+            .enable_ppa_accel = false,
+            .require_double_buffer = false,
+        },
+        .tear_avoid_mode = cfg->tear_avoid_mode,
+    };
+    lv_display_t *disp = esp_lv_adapter_register_display(&dc);
+    if (!disp) return NULL;
+    esp_lcd_touch_handle_t tp = NULL;
+    if (bsp_touch_new(cfg, &tp) != ESP_OK) return NULL;
+    const esp_lv_adapter_touch_config_t tc = ESP_LV_ADAPTER_TOUCH_DEFAULT_CONFIG(disp, tp);
+    if (!esp_lv_adapter_register_touch(&tc)) return NULL;
+    if (esp_lv_adapter_start() != ESP_OK) return NULL;
+    return disp;
+}
 
 void app_main(void)
 {
@@ -50,7 +92,7 @@ void app_main(void)
     default: break;                                                             /* 0   */
     }
     cfg.lv_adapter_cfg.task_stack_size = 16 * 1024;
-    lv_display_t *disp = bsp_display_start_with_config(&cfg);
+    lv_display_t *disp = display_start(&cfg);
     if (!disp) {
         ESP_LOGE(TAG, "display init failed");
         return;

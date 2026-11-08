@@ -2,6 +2,15 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
+## [0.4.11] - 2026-11-08
+
+### Changed
+- **Smoother, faster screens.** Text now draws about 2.5 times faster, so lists scroll much more smoothly, and the screen keeps more memory free for Wi-Fi. The font looks the same.
+- **History and Files show the 5 most recent** jobs and files. Files says how many there are in total.
+
+### Fixed
+- The History tab no longer rebuilds itself every 15 seconds, which made scrolling stall for seconds at a time.
+
 ## [0.4.10] - 2026-11-08
 
 ### Added
@@ -151,6 +160,7 @@ First public release.
 - USB serial console for headless setup and debugging.
 - Web installer (GitHub Pages) and CI release builds.
 
+[0.4.11]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.11
 [0.4.10]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.10
 [0.4.9]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.9
 [0.4.8]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.8

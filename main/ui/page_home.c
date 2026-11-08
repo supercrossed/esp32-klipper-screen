@@ -207,7 +207,7 @@ static void build_tile(int i)
     lv_obj_set_style_clip_corner(media, true, 0);
     lv_obj_remove_flag(media, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(media, LV_OBJ_FLAG_EVENT_BUBBLE);
-    t->placeholder = ui_label(media, p == &P_BIG ? ui_font_bold(96) : FONT_XXL, COL_BORDER, ICON_PRINTER);
+    t->placeholder = ui_label(media, p == &P_BIG ? ui_font_icon(115) : FONT_XXL, COL_BORDER, ICON_PRINTER);
     lv_obj_center(t->placeholder);
     t->thumb = lv_image_create(media);
     lv_obj_center(t->thumb);

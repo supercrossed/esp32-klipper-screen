@@ -4,6 +4,7 @@
  * Only the selected tab's widgets exist; switching tabs deletes the old ones.
  */
 #include "ui.h"
+#include "esp_log.h"
 #include "mesh_view.h"
 #include "icons.h"
 #include "ui_thumb.h"

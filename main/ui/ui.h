@@ -67,7 +67,8 @@ extern const lv_font_t *g_font_16, *g_font_20, *g_font_24, *g_font_32, *g_font_4
 #define FONT_L   (g_font_24)
 #define FONT_XL  (g_font_32)
 #define FONT_XXL (g_font_48)
-const lv_font_t *ui_font_bold(int px);   /* Inter Bold at any size, with icons */
+const lv_font_t *ui_font_bold(int px);   /* Inter Bold (nearest pre-rendered size), with icons */
+const lv_font_t *ui_font_icon(int px);   /* MDI icons only, any size */
 
 /* ── helpers ─────────────────────────────────────────────────────────── */
 int        ui_width(void);            /* logical content width (after rotation) */

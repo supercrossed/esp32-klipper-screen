@@ -178,10 +178,14 @@ static float fnum(const cJSON *o, const char *k)
     return cJSON_IsNumber(v) ? (float)v->valuedouble : 0;
 }
 
+#define STR_(x) #x
+#define STR(x) STR_(x)
+#define HIST_LIMIT_STR STR(HIST_MAX)
+
 static void fetch_history(esp_http_client_handle_t *conn, http_buf_t *b, const printer_cfg_t *pc, uint32_t gen)
 {
     cJSON *j;
-    get(conn, b, pc, "/server/history/list?limit=50&order=desc", &j);
+    get(conn, b, pc, "/server/history/list?limit=" HIST_LIMIT_STR "&order=desc", &j);
     if (!j) return;
     hist_job_t *tmp = heap_caps_calloc(HIST_MAX, sizeof(hist_job_t), MALLOC_CAP_SPIRAM);
     int n = 0;
@@ -213,11 +217,15 @@ static void fetch_history(esp_http_client_handle_t *conn, http_buf_t *b, const p
     cJSON_Delete(j);
     lock();
     if (gen == s_gen && tmp) {
+        /* Only announce new data when something changed: the History tab
+         * rebuilds its whole list on every new version. */
+        bool changed = n != s_nhist || s_err[0] || memcmp(s_hist, tmp, n * sizeof(hist_job_t)) ||
+                       memcmp(&s_tot, &tot, sizeof(tot));
         memcpy(s_hist, tmp, n * sizeof(hist_job_t));
         s_nhist = n;
         s_tot = tot;
         s_err[0] = 0;
-        s_ver++;
+        if (changed) s_ver++;
     }
     unlock();
     heap_caps_free(tmp);

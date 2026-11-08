@@ -5,6 +5,8 @@
  */
 #include "ui.h"
 #include "icons.h"
+#include "fonts/inter_fonts.h"
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -131,17 +133,20 @@ lv_color_t ui_contrast(lv_color_t bg)
 }
 
 /* ── fonts ───────────────────────────────────────────────────────────────
- * Text: Inter (OFL, main/ui/fonts), rendered at any size by Tiny TTF.
- * Fallbacks: MDI icons (a touch larger than the text so they read as icons),
- * then LVGL's built-in Montserrat for the LV_SYMBOL_* glyphs (keyboard keys,
- * dropdown arrows). */
+ * Text: Inter (OFL), pre-rendered to bitmap fonts by tools/gen_fonts.py
+ * (main/ui/fonts/inter_*.c). Rendering the TTF at run time with Tiny TTF made
+ * long text lists several times slower to scroll.
+ * Fallbacks: MDI icons via Tiny TTF (a touch larger than the text so they read
+ * as icons), then LVGL's built-in Montserrat for the LV_SYMBOL_* glyphs
+ * (keyboard keys, dropdown arrows). */
 extern const uint8_t mdi_ttf_start[] asm("_binary_mdi_ttf_start");
 extern const uint8_t mdi_ttf_end[] asm("_binary_mdi_ttf_end");
-extern const uint8_t inter_r_start[] asm("_binary_inter_regular_ttf_start");
-extern const uint8_t inter_r_end[] asm("_binary_inter_regular_ttf_end");
-extern const uint8_t inter_b_start[] asm("_binary_inter_bold_ttf_start");
-extern const uint8_t inter_b_end[] asm("_binary_inter_bold_ttf_end");
 const lv_font_t *g_font_16, *g_font_20, *g_font_24, *g_font_32, *g_font_48;
+
+typedef struct { int px; const lv_font_t *font; } font_entry_t;
+static const font_entry_t INTER_REGULAR[] = INTER_REGULAR_TABLE;
+static const font_entry_t INTER_BOLD[] = INTER_BOLD_TABLE;
+#define NELEM(a) (int)(sizeof(a) / sizeof((a)[0]))
 
 static const lv_font_t *builtin_for(int px)
 {
@@ -149,40 +154,50 @@ static const lv_font_t *builtin_for(int px)
          : px < 40 ? &lv_font_montserrat_32 : &lv_font_montserrat_48;
 }
 
-static const lv_font_t *make_font(const uint8_t *start, const uint8_t *end, int px)
+/* MDI icons at the size that suits text of `px`, falling back to the built-in symbols. */
+const lv_font_t *ui_font_icon(int px)
 {
-    const lv_font_t *builtin = builtin_for(px);
-    lv_font_t *icons = lv_tiny_ttf_create_data(mdi_ttf_start, mdi_ttf_end - mdi_ttf_start, px * 6 / 5);
-    if (icons) icons->fallback = builtin;
-    lv_font_t *f = lv_tiny_ttf_create_data(start, end - start, px);
-    if (!f) {
-        ESP_LOGW(TAG, "font %d px failed, using the built-in one", px);
-        return icons ? icons : builtin;
-    }
-    f->fallback = icons ? icons : builtin;
+    static struct { int px; lv_font_t *f; } cache[16];
+    static int n;
+    for (int i = 0; i < n; i++)
+        if (cache[i].px == px) return cache[i].f;
+    lv_font_t *f = lv_tiny_ttf_create_data(mdi_ttf_start, mdi_ttf_end - mdi_ttf_start, px);
+    if (!f) return builtin_for(px);
+    f->fallback = builtin_for(px);
+    if (n < NELEM(cache)) { cache[n].px = px; cache[n++].f = f; }
+    return f;
+}
+
+/* Copy of the generated (const) font with the icon fallback attached. */
+static const lv_font_t *with_icons(const font_entry_t *tab, int n, int px)
+{
+    int best = 0;
+    for (int i = 1; i < n; i++)
+        if (abs(tab[i].px - px) < abs(tab[best].px - px)) best = i;
+    lv_font_t *f = lv_malloc(sizeof(lv_font_t));
+    if (!f) return tab[best].font;
+    *f = *tab[best].font;
+    f->fallback = ui_font_icon(tab[best].px * 6 / 5);
     return f;
 }
 
 static void fonts_init(void)
 {
-    g_font_16 = make_font(inter_r_start, inter_r_end, 16);
-    g_font_20 = make_font(inter_r_start, inter_r_end, 20);
-    g_font_24 = make_font(inter_r_start, inter_r_end, 24);
-    g_font_32 = make_font(inter_r_start, inter_r_end, 32);
-    g_font_48 = make_font(inter_r_start, inter_r_end, 48);
+    g_font_16 = with_icons(INTER_REGULAR, NELEM(INTER_REGULAR), 16);
+    g_font_20 = with_icons(INTER_REGULAR, NELEM(INTER_REGULAR), 20);
+    g_font_24 = with_icons(INTER_REGULAR, NELEM(INTER_REGULAR), 24);
+    g_font_32 = with_icons(INTER_REGULAR, NELEM(INTER_REGULAR), 32);
+    g_font_48 = with_icons(INTER_REGULAR, NELEM(INTER_REGULAR), 48);
 }
 
 const lv_font_t *ui_font_bold(int px)
 {
-    static struct { int px; const lv_font_t *f; } cache[12];
+    static struct { int px; const lv_font_t *f; } cache[16];
     static int n;
     for (int i = 0; i < n; i++)
         if (cache[i].px == px) return cache[i].f;
-    const lv_font_t *f = make_font(inter_b_start, inter_b_end, px);
-    if (n < (int)(sizeof(cache) / sizeof(cache[0]))) {
-        cache[n].px = px;
-        cache[n++].f = f;
-    }
+    const lv_font_t *f = with_icons(INTER_BOLD, NELEM(INTER_BOLD), px);
+    if (n < NELEM(cache)) { cache[n].px = px; cache[n++].f = f; }
     return f;
 }
 
@@ -623,7 +638,7 @@ void ui_apply_brightness(void)
 }
 
 /* ── battery icon (only while a battery is connected) ────────────────── */
-#define BAT_W 72
+#define BAT_W 84
 #define BAT_H 32
 static void bat_tap_cb(lv_event_t *e) { ui_nav_push(PAGE_SETTINGS, 6 /* Device */); }
 

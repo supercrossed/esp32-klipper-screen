@@ -117,6 +117,72 @@ static esp_err_t shot_handler(httpd_req_t *req)
     return ret;
 }
 
+/* Scroll benchmark (console `bench`): a timer scrolls the scrollable object
+ * with the most content 20 px per step, 30 steps down and 30 back, while
+ * display events time every real refresh (render + flush). */
+static lv_obj_t *s_best;
+static int32_t s_best_range;
+static int s_step = -1, s_frames;
+static int64_t s_t_start, s_t_total, s_t_worst, s_t_frame0;
+
+static void find_scrollable(lv_obj_t *o)
+{
+    int32_t r = lv_obj_get_scroll_bottom(o) + lv_obj_get_scroll_top(o);
+    if (lv_obj_has_flag(o, LV_OBJ_FLAG_SCROLLABLE) && r > s_best_range) { s_best = o; s_best_range = r; }
+    for (uint32_t i = 0; i < lv_obj_get_child_count(o); i++) find_scrollable(lv_obj_get_child(o, i));
+}
+
+static void refr_cb(lv_event_t *e)
+{
+    if (s_step < 0) return;
+    if (lv_event_get_code(e) == LV_EVENT_REFR_START) s_t_frame0 = esp_timer_get_time();
+    else if (s_t_frame0) {
+        int64_t dt = esp_timer_get_time() - s_t_frame0;
+        s_t_total += dt;
+        if (dt > s_t_worst) s_t_worst = dt;
+        s_frames++;
+        s_t_frame0 = 0;
+    }
+}
+
+static void bench_timer(lv_timer_t *t)
+{
+    if (s_step >= 60) {
+        int64_t wall = esp_timer_get_time() - s_t_start;
+        printf("bench: %u items, %ld px of scroll: %d frames in %lld ms (%.1f fps), render avg %lld ms, worst %lld ms\n",
+               (unsigned)lv_obj_get_child_count(s_best), (long)s_best_range, s_frames, wall / 1000,
+               s_frames * 1e6 / (double)wall, s_frames ? s_t_total / s_frames / 1000 : 0, s_t_worst / 1000);
+        lv_display_remove_event_cb_with_user_data(lv_display_get_default(), refr_cb, NULL);
+        lv_timer_delete(t);
+        s_step = -1;
+        return;
+    }
+    lv_obj_scroll_by(s_best, 0, s_step < 30 ? -20 : 20, LV_ANIM_OFF);
+    s_step++;
+}
+
+static void bench_async(void *arg)
+{
+    s_best = NULL;
+    s_best_range = 0;
+    find_scrollable(lv_screen_active());
+    if (!s_best || s_step >= 0) { printf("bench: nothing scrollable (or already running)\n"); return; }
+    s_step = 0;
+    s_frames = 0;
+    s_t_total = s_t_worst = s_t_frame0 = 0;
+    s_t_start = esp_timer_get_time();
+    lv_display_add_event_cb(lv_display_get_default(), refr_cb, LV_EVENT_REFR_START, NULL);
+    lv_display_add_event_cb(lv_display_get_default(), refr_cb, LV_EVENT_REFR_READY, NULL);
+    lv_timer_create(bench_timer, 16, NULL);
+}
+
+void screenshot_bench(void)
+{
+    bsp_display_lock(-1);
+    lv_async_call(bench_async, NULL);
+    bsp_display_unlock();
+}
+
 /* GET /bat: battery readings as text, for testing with the USB cable unplugged. */
 static esp_err_t bat_handler(httpd_req_t *req)
 {

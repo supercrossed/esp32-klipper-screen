@@ -47,7 +47,7 @@ typedef struct {
     int   nprofiles;
 } mesh_t;
 
-#define HIST_MAX 50
+#define HIST_MAX 5   /* the History tab shows the most recent jobs only */
 
 /* System tab: one fetch of /machine/system_info, then every 5 s. */
 void machine_start_services(int printer_idx);
