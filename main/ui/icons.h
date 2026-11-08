@@ -71,6 +71,8 @@
 #define ICON_HISTORY      "\xF3\xB0\x8B\x9A"   /* mdi-history */
 #define ICON_MESH         "\xF3\xB0\x8B\x81"   /* mdi-grid */
 #define ICON_CUBE         "\xF3\xB0\x91\xA4"   /* mdi-rotate-3d-variant */
+#define ICON_BOLT         "\xF3\xB1\x90\x8B"   /* mdi-lightning-bolt */
+#define ICON_BATTERY      "\xF3\xB1\x8A\xA3"   /* mdi-battery-high */
 #define ICON_PALETTE      "\xF3\xB0\xB8\x8C"   /* mdi-palette-outline */
 #define ICON_BELL         "\xF3\xB0\x82\x9C"   /* mdi-bell-outline */
 #define ICON_SUN          "\xF3\xB0\x96\x99"   /* mdi-weather-sunny */

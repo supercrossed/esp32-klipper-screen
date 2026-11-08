@@ -11,6 +11,10 @@
 #include "esp_log.h"
 #include "lvgl.h"
 #include "bsp/esp-bsp.h"
+#include <stdio.h>
+#include "esp_timer.h"
+#include "battery.h"
+#include "esp_system.h"
 
 static const char *TAG = "shot";
 static httpd_handle_t s_srv;
@@ -113,6 +117,19 @@ static esp_err_t shot_handler(httpd_req_t *req)
     return ret;
 }
 
+/* GET /bat: battery readings as text, for testing with the USB cable unplugged. */
+static esp_err_t bat_handler(httpd_req_t *req)
+{
+    bat_info_t b;
+    battery_get(&b);
+    char t[200];
+    snprintf(t, sizeof(t), "%lld s  %s  %d mV (reading %d mV)  %d%%  boot=%d drop=%d  reset=%d\n",
+             (long long)(esp_timer_get_time() / 1000000), battery_state_str(b.state), b.mv, b.raw_mv, b.soc,
+             b.boot_mv, b.boot_drop, (int)esp_reset_reason());
+    httpd_resp_set_type(req, "text/plain");
+    return httpd_resp_sendstr(req, t);
+}
+
 bool screenshot_server_start(void)
 {
     if (s_srv) return true;
@@ -124,6 +141,8 @@ bool screenshot_server_start(void)
     if (httpd_start(&s_srv, &cfg) != ESP_OK) return false;
     httpd_uri_t u = { .uri = "/screenshot.bmp", .method = HTTP_GET, .handler = shot_handler };
     httpd_register_uri_handler(s_srv, &u);
+    httpd_uri_t ub = { .uri = "/bat", .method = HTTP_GET, .handler = bat_handler };
+    httpd_register_uri_handler(s_srv, &ub);
     return true;
 }
 

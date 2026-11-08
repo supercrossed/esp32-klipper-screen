@@ -28,6 +28,7 @@
 #include "webcam.h"
 #include "updater.h"
 #include "sound.h"
+#include "battery.h"
 
 bool screenshot_server_start(void);
 bool screenshot_tap(int x, int y);
@@ -133,6 +134,20 @@ static void handle(char *line)
     } else if (!strcmp(argv[0], "sound")) {
         sound_play(argc >= 2 && !strcmp(argv[1], "error") ? SOUND_ERROR : SOUND_DONE);
         printf("sound queued (volume %d)\n", g_settings.alert_vol);
+    } else if (!strcmp(argv[0], "bat")) {
+        /* bat [cap <mAh> | cut <mV>]: show the battery, or change its settings */
+        if (argc >= 3 && !strcmp(argv[1], "cap")) { g_settings.bat_cap_mah = atoi(argv[2]); settings_save(); }
+        if (argc >= 3 && !strcmp(argv[1], "cut")) { g_settings.bat_cut_mv = atoi(argv[2]); settings_save(); }
+        bat_info_t b;
+        battery_get(&b);
+        printf("battery: %s  %d mV (reading %d mV)  %d%%  left=%d min  low=%d off=%d  boot=%d drop=%d  [cap %u mAh, cut-off %u mV]\n",
+               battery_state_str(b.state), b.mv, b.raw_mv, b.soc, b.minutes_left, b.low, b.shutting_down,
+               b.boot_mv, b.boot_drop, g_settings.bat_cap_mah, g_settings.bat_cut_mv);
+        static const char *const RR[] = { "unknown", "power-on", "external pin", "software", "panic", "int-wdt",
+                                          "task-wdt", "other-wdt", "deep-sleep", "brownout", "sdio", "usb", "jtag",
+                                          "efuse", "power-glitch", "cpu-lockup" };
+        int rr = esp_reset_reason();
+        printf("last restart: %s (%d)\n", rr >= 0 && rr < (int)(sizeof(RR) / sizeof(RR[0])) ? RR[rr] : "?", rr);
     } else if (!strcmp(argv[0], "reboot")) {
         esp_restart();
     } else {

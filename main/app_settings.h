@@ -20,7 +20,12 @@ typedef struct {
     uint8_t  has_loc;
     uint8_t  alert_vol;       /* 0 = alerts silent, else speaker volume % */
     uint8_t  alerts;          /* 1 = show job-finished banners */
+    uint16_t bat_cap_mah;     /* battery size, 0 = no battery fitted */
+    uint16_t bat_cut_mv;      /* turn off below this voltage, 0 = never */
+    uint8_t  bat_type;        /* BAT_TYPE_LIION (18650 etc.) or BAT_TYPE_LIPO */
 } app_settings_t;
+
+enum { BAT_TYPE_LIION = 0, BAT_TYPE_LIPO = 1 };
 
 extern app_settings_t g_settings;
 

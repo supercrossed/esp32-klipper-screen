@@ -89,6 +89,8 @@ ICONS = {
     "HISTORY":      "history",
     "MESH":         "grid",
     "CUBE":         "rotate-3d-variant",
+    "BOLT":         "lightning-bolt",
+    "BATTERY":      "battery-high",
     "PALETTE":      "palette-outline",
     "BELL":         "bell-outline",
     "SUN":          "weather-sunny",

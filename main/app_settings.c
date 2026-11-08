@@ -20,6 +20,8 @@ static void defaults(app_settings_t *s)
     s->accent = 0;
     s->alert_vol = 70;
     s->alerts = 1;
+    s->bat_cap_mah = 2000;
+    s->bat_cut_mv = 3300;
     strcpy(s->device_name, "KlipperRemote");
 }
 
@@ -60,6 +62,9 @@ void settings_load(void)
     if (g_settings.theme_mode == 0 && g_settings.light_mode) g_settings.theme_mode = 1;   /* from <= v0.3.0 */
     nvs_get_u16(h, "poll", &g_settings.poll_ms);
     nvs_get_u16(h, "pollbg", &g_settings.poll_bg_ms);
+    nvs_get_u16(h, "batcap", &g_settings.bat_cap_mah);
+    nvs_get_u16(h, "batcut", &g_settings.bat_cut_mv);
+    nvs_get_u8(h, "battype", &g_settings.bat_type);
     nvs_close(h);
     if (g_settings.brightness < 5) g_settings.brightness = 5;
     if (g_settings.poll_ms < 250) g_settings.poll_ms = 250;
@@ -90,6 +95,9 @@ void settings_save(void)
     nvs_set_u8(h, "alerts", g_settings.alerts);
     nvs_set_u16(h, "poll", g_settings.poll_ms);
     nvs_set_u16(h, "pollbg", g_settings.poll_bg_ms);
+    nvs_set_u16(h, "batcap", g_settings.bat_cap_mah);
+    nvs_set_u16(h, "batcut", g_settings.bat_cut_mv);
+    nvs_set_u8(h, "battype", g_settings.bat_type);
     nvs_commit(h);
     nvs_close(h);
 }

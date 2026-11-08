@@ -49,6 +49,7 @@ Connect at **115200 baud** to the board's USB-UART, for example with `idf.py -p 
 | `theme light` / `theme dark` | Switch the theme |
 | `sound` / `sound error` | Play the finished / problem chime |
 | `tasks` | List running tasks and their state (helps with freeze reports) |
+| `bat` | Battery status, voltage and charge (`bat cap 2500` sets the size, `bat cut 0` turns the low-battery power-off off) |
 | `reboot` | Restart |
 
 When reporting a crash, include the lines after `Guru Meditation` or `assert failed`, and the output of `status`.

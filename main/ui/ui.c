@@ -15,6 +15,8 @@
 #include "wifi_mgr.h"
 #include "printers.h"
 #include "updater.h"
+#include "battery.h"
+#include "sound.h"
 #include <math.h>
 #include "esp_timer.h"
 #include "esp_system.h"
@@ -128,7 +130,11 @@ lv_color_t ui_contrast(lv_color_t bg)
     return lv_color_brightness(bg) > 150 ? lv_color_hex(0x111418) : lv_color_white();
 }
 
-/* ── fonts: Montserrat + MDI icon fallback ───────────────────────────── */
+/* ── fonts ───────────────────────────────────────────────────────────────
+ * Text: Inter (OFL, main/ui/fonts), rendered at any size by Tiny TTF.
+ * Fallbacks: MDI icons (a touch larger than the text so they read as icons),
+ * then LVGL's built-in Montserrat for the LV_SYMBOL_* glyphs (keyboard keys,
+ * dropdown arrows). */
 extern const uint8_t mdi_ttf_start[] asm("_binary_mdi_ttf_start");
 extern const uint8_t mdi_ttf_end[] asm("_binary_mdi_ttf_end");
 extern const uint8_t inter_r_start[] asm("_binary_inter_regular_ttf_start");
@@ -137,10 +143,6 @@ extern const uint8_t inter_b_start[] asm("_binary_inter_bold_ttf_start");
 extern const uint8_t inter_b_end[] asm("_binary_inter_bold_ttf_end");
 const lv_font_t *g_font_16, *g_font_20, *g_font_24, *g_font_32, *g_font_48;
 
-/* Text: Inter (OFL, main/ui/fonts), rendered at any size by Tiny TTF.
- * Fallbacks: MDI icons (a touch larger than the text so they read as icons),
- * then LVGL's built-in Montserrat for the LV_SYMBOL_* glyphs (keyboard keys,
- * dropdown arrows). */
 static const lv_font_t *builtin_for(int px)
 {
     return px < 18 ? &lv_font_montserrat_16 : px < 22 ? &lv_font_montserrat_20 : px < 28 ? &lv_font_montserrat_24
@@ -193,6 +195,7 @@ static int s_depth;
 static const ui_page_t *s_cur;
 
 static lv_display_t *s_disp;
+static lv_obj_t *s_bat, *s_bat_fill, *s_bat_lbl;
 static lv_obj_t *s_header, *s_content, *s_back_btn, *s_title, *s_wifi_lbl, *s_clock_lbl, *s_upd_btn;
 static lv_obj_t *s_kb, *s_kb_ta;
 
@@ -619,6 +622,94 @@ void ui_apply_brightness(void)
     bsp_display_brightness_set(g_settings.brightness);
 }
 
+/* ── battery icon (only while a battery is connected) ────────────────── */
+#define BAT_W 72
+#define BAT_H 32
+static void bat_tap_cb(lv_event_t *e) { ui_nav_push(PAGE_SETTINGS, 6 /* Device */); }
+
+static void build_battery(void)
+{
+    s_bat = lv_obj_create(s_header);
+    lv_obj_set_size(s_bat, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(s_bat, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(s_bat, 0, 0);
+    lv_obj_set_style_pad_all(s_bat, 4, 0);
+    lv_obj_set_style_pad_gap(s_bat, 0, 0);
+    lv_obj_set_flex_flow(s_bat, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(s_bat, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_remove_flag(s_bat, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(s_bat, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(s_bat, bat_tap_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *body = lv_obj_create(s_bat);
+    lv_obj_set_size(body, BAT_W, BAT_H);
+    lv_obj_set_style_bg_opa(body, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_color(body, COL_MUTED, 0);
+    lv_obj_set_style_border_width(body, 2, 0);
+    lv_obj_set_style_radius(body, 7, 0);
+    lv_obj_set_style_pad_all(body, 3, 0);
+    lv_obj_remove_flag(body, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+
+    s_bat_fill = lv_obj_create(body);
+    lv_obj_set_size(s_bat_fill, 0, LV_PCT(100));
+    lv_obj_align(s_bat_fill, LV_ALIGN_LEFT_MID, 0, 0);
+    lv_obj_set_style_border_width(s_bat_fill, 0, 0);
+    lv_obj_set_style_radius(s_bat_fill, 4, 0);
+    lv_obj_remove_flag(s_bat_fill, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+
+    s_bat_lbl = lv_label_create(body);
+    lv_obj_set_style_text_font(s_bat_lbl, ui_font_bold(16), 0);
+    lv_obj_center(s_bat_lbl);
+
+    lv_obj_t *nub = lv_obj_create(s_bat);
+    lv_obj_set_size(nub, 5, 14);
+    lv_obj_set_style_bg_color(nub, COL_MUTED, 0);
+    lv_obj_set_style_border_width(nub, 0, 0);
+    lv_obj_set_style_radius(nub, 2, 0);
+    lv_obj_remove_flag(nub, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+
+    lv_obj_add_flag(s_bat, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void battery_tick(void)
+{
+    static int shown_soc = -1, shown_state = -1;
+    static bool low_warned, off_warned;
+    bat_info_t b;
+    battery_get(&b);
+    bool vis = b.state != BAT_NONE;
+    if (vis == lv_obj_has_flag(s_bat, LV_OBJ_FLAG_HIDDEN)) {
+        if (vis) lv_obj_remove_flag(s_bat, LV_OBJ_FLAG_HIDDEN);
+        else lv_obj_add_flag(s_bat, LV_OBJ_FLAG_HIDDEN);
+        shown_soc = -1;
+    }
+    if (vis && (b.soc != shown_soc || (int)b.state != shown_state)) {
+        shown_soc = b.soc;
+        shown_state = b.state;
+        lv_color_t c = b.soc > 50 ? COL_OK : b.soc > 20 ? COL_WARN : COL_ERR;
+        int inner = BAT_W - 2 * 2 - 2 * 3;
+        int w = inner * b.soc / 100;
+        lv_obj_set_width(s_bat_fill, w < 3 ? 3 : w);
+        lv_obj_set_style_bg_color(s_bat_fill, c, 0);
+        char t[24];
+        bool chg = b.state == BAT_CHARGING || b.state == BAT_FULL;
+        snprintf(t, sizeof(t), "%s%d%%", chg ? ICON_BOLT : "", b.soc);
+        lv_label_set_text(s_bat_lbl, t);
+        /* the text sits over the fill once it reaches past the middle */
+        lv_obj_set_style_text_color(s_bat_lbl, b.soc >= 55 ? ui_contrast(c) : COL_TEXT, 0);
+    }
+    if (b.low && !low_warned) {
+        low_warned = true;
+        ui_toast(ICON_ALERT "  Battery low - plug in USB to charge");
+        sound_play(SOUND_ERROR);
+    } else if (!b.low && b.soc > 25) low_warned = false;
+    if (b.shutting_down && !off_warned) {
+        off_warned = true;
+        ui_toast(ICON_ALERT "  Battery empty - turning off in 20 seconds to protect it.\n"
+                 "Plug in USB; the screen starts again by itself once it has charged a little.");
+    } else if (!b.shutting_down) off_warned = false;
+}
+
 /* ── periodic refresh ────────────────────────────────────────────────── */
 static void tick_cb(lv_timer_t *t)
 {
@@ -654,6 +745,7 @@ static void tick_cb(lv_timer_t *t)
     }
 
 
+    battery_tick();
     theme_tick();
     ui_alert_tick();
     ui_update_tick();
@@ -742,6 +834,7 @@ static void build_shell(void)
     lv_obj_set_style_min_height(s_upd_btn, 52, 0);
     lv_obj_set_style_pad_ver(s_upd_btn, 8, 0);
     lv_obj_add_flag(s_upd_btn, LV_OBJ_FLAG_HIDDEN);
+    build_battery();
     s_wifi_lbl = ui_label(s_header, FONT_L, COL_MUTED, "");
     s_clock_lbl = ui_label(s_header, FONT_L, COL_TEXT, "--:--");
     hdr_btn(ICON_SETTINGS, settings_cb);

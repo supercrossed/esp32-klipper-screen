@@ -12,6 +12,7 @@
 #include "printers.h"
 #include "ui.h"
 #include "updater.h"
+#include "battery.h"
 
 static const char *TAG = "main";
 void serial_console_start(void);
@@ -24,6 +25,7 @@ void app_main(void)
         nvs_flash_init();
     }
     settings_load();
+    battery_boot_check();   /* may go straight back to sleep after a low-battery power off */
 
     static const esp_lv_adapter_rotation_t rot[4] = {
         ESP_LV_ADAPTER_ROTATE_90,    /* landscape */
@@ -58,6 +60,7 @@ void app_main(void)
     wifi_mgr_start();
     printers_init();
     updater_init();
+    battery_start();
     serial_console_start();
 
     bsp_display_lock(-1);

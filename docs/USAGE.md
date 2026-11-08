@@ -91,7 +91,19 @@ The top level is a grid of tiles:
 | **Display** | Theme (**Dark / Light / Auto** by sunrise and sunset), accent colour, brightness, screen rotation (a rotation change restarts the display) |
 | **Time** | Clock and time zone. *Auto* detects it once from your public IP |
 | **Updates** | Installed and latest version, **Check for updates**, **View update** |
-| **Device** | Device name (network hostname), **alerts and sound** (banner on/off, volume, test sound), firmware and memory info, Restart, Factory reset |
+| **Device** | Device name (network hostname), **alerts and sound** (banner on/off, volume, test sound), **battery**, firmware and memory info, Restart, Factory reset |
+
+## Battery
+
+The board has a **BAT** connector (MX1.25) for a single Li-ion or LiPo cell, such as a protected 18650. The board charges it from USB.
+
+- **Battery icon.** While a battery is connected, an icon in the top bar shows its charge in %: green above 50%, yellow down to 21%, red at 20% and below. A lightning bolt means it's charging. Tap the icon to open the battery settings.
+- **Settings → Device → Battery** shows the status (*Charging*, *Charged*, *On battery*), the charge, the voltage and, on battery, roughly how long is left at the current brightness. Pick your **battery type** there: *Li-ion (18650)* for round cells, *LiPo* for flat packs. Each has its own voltage curve. Also pick the **battery size**; it's used for the time-left estimate and to correct the reading for the board's load. *No battery* turns all of this off.
+- **The % is an estimate** worked out from the voltage, since the board has no fuel gauge. It's least accurate while charging (shown as *about*). To keep it steady, it only goes up while charging and only goes down on battery.
+- **Turn off when empty** (default: below 3.3 V; 3.0 to 3.5 V or Never). The board has no protection chip of its own, so the screen turns itself off before the cell runs flat. It warns you at 15%. Plug in USB to start it again.
+- **Unplugging USB restarts the screen** for a moment (plugging it in sometimes does too). That's the board's power switch-over; it can't be avoided in software.
+- **On battery, hold the POWER button** to turn the screen off or on. The PWR light on the back of the board stays on while it's off: the board keeps its battery converter running and draws a little current (roughly 1 mA). Unplug the battery to store the screen for weeks; the firmware can't switch that part off.
+- The board always charges to 4.2 V (full). A lower charge limit isn't possible: the charger has no setting the firmware can change.
 
 ## Print alerts
 

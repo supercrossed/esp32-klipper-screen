@@ -2,6 +2,16 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
+## [0.4.10] - 2026-11-08
+
+### Added
+- **Battery support** for a single Li-ion or LiPo cell (such as a protected 18650) in the board's BAT connector.
+  - A battery icon in the top bar shows the charge in %. It's green above 50%, yellow down to 21% and red below that, with a lightning bolt while charging. It only appears while a battery is connected.
+  - **Settings → Device → Battery** shows the status, charge, voltage and, on battery, roughly how long is left. Set your battery type (Li-ion 18650 or LiPo) and size there. The % is estimated from the voltage, so it only goes up while charging and only goes down on battery to keep it steady.
+  - **Turn off when empty** (default: below 3.3 V, adjustable from 3.0 to 3.5 V) protects the cell, because the board has no protection chip of its own. You get a warning at 15%. Plug in USB to start the screen again.
+- Note: the board always charges to 4.2 V; a lower charge limit isn't possible with its charger. Unplugging USB restarts the screen for a moment, which is how the board switches power. On battery, hold the POWER button to turn the screen off or on.
+- **Desk case:** updated print files and renders, and a close-up of the buttons in the build guide.
+
 ## [0.4.9] - 2026-11-07
 
 ### Changed
@@ -141,6 +151,7 @@ First public release.
 - USB serial console for headless setup and debugging.
 - Web installer (GitHub Pages) and CI release builds.
 
+[0.4.10]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.10
 [0.4.9]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.9
 [0.4.8]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.8
 [0.4.7]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.7

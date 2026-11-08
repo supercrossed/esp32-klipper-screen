@@ -19,6 +19,7 @@
 #include "tz.h"
 #include "updater.h"
 #include "sound.h"
+#include "battery.h"
 
 enum { SEC_GRID = 0, SEC_NETWORK, SEC_PRINTERS, SEC_DISPLAY, SEC_TIME, SEC_UPDATES, SEC_DEVICE, SEC_COUNT };
 
@@ -34,7 +35,7 @@ static const struct { const char *icon, *title; } SECTIONS[SEC_COUNT] = {
 static int s_sec;
 static int s_tick;
 static lv_obj_t *s_sum[SEC_COUNT];         /* grid tile summaries */
-static lv_obj_t *s_info, *s_time_lbl, *s_name_ta, *s_upd_btns;
+static lv_obj_t *s_info, *s_time_lbl, *s_name_ta, *s_upd_btns, *s_bat_info;
 static upd_info_t s_upd;   /* static: ~2 KB */
 static int s_upd_shown = -1;
 
@@ -166,6 +167,24 @@ static void test_sound_cb(lv_event_t *e)
 {
     if (!g_settings.alert_vol) { ui_toast("Alert sound is off"); return; }
     sound_play(SOUND_DONE);
+}
+
+static const uint16_t BAT_CAPS[] = { 0, 500, 1000, 1500, 2000, 2500, 3000, 4000, 5000 };
+static const uint16_t BAT_CUTS[] = { 0, 3000, 3100, 3200, 3300, 3400, 3500 };
+static void bat_cap_cb(lv_event_t *e)
+{
+    g_settings.bat_cap_mah = BAT_CAPS[lv_dropdown_get_selected(lv_event_get_target(e))];
+    settings_save();
+}
+static void bat_type_cb(lv_event_t *e)
+{
+    g_settings.bat_type = lv_dropdown_get_selected(lv_event_get_target(e)) ? BAT_TYPE_LIPO : BAT_TYPE_LIION;
+    settings_save();
+}
+static void bat_cut_cb(lv_event_t *e)
+{
+    g_settings.bat_cut_mv = BAT_CUTS[lv_dropdown_get_selected(lv_event_get_target(e))];
+    settings_save();
 }
 
 static void tz_cb(lv_event_t *e)
@@ -461,6 +480,29 @@ static void build_device(lv_obj_t *c)
     dropdown(r, "Off\nQuiet\nNormal\nLoud", vi, vol_cb);
     wide_btn(ga, ICON_BELL, "Test sound", COL_CARD2, test_sound_cb, NULL);
 
+    lv_obj_t *gb = group(c, "BATTERY");
+    s_bat_info = ui_label(gb, FONT_M, COL_TEXT, "");
+    lv_label_set_long_mode(s_bat_info, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(s_bat_info, LV_PCT(100));
+    r = row(gb, ICON_BATTERY, "Battery size");
+    dropdown(r, "No battery\n500 mAh\n1000 mAh\n1500 mAh\n2000 mAh\n2500 mAh\n3000 mAh\n4000 mAh\n5000 mAh",
+             find_u16(BAT_CAPS, 9, g_settings.bat_cap_mah), bat_cap_cb);
+    r = row(gb, ICON_BATTERY, "Battery type");
+    dropdown(r, "Li-ion (18650)\nLiPo (flat pack)", g_settings.bat_type == BAT_TYPE_LIPO ? 1 : 0, bat_type_cb);
+    r = row(gb, ICON_POWER, "Turn off when empty");
+    dropdown(r, "Never\nBelow 3.0 V\nBelow 3.1 V\nBelow 3.2 V\nBelow 3.3 V\nBelow 3.4 V\nBelow 3.5 V",
+             find_u16(BAT_CUTS, 7, g_settings.bat_cut_mv), bat_cut_cb);
+    lv_obj_t *note = ui_label(gb, FONT_S, COL_MUTED,
+        "The charge level is worked out from the battery voltage, so it's an estimate, especially while charging. "
+        "The type picks the matching voltage curve; the size is used for the time-left estimate. "
+        "The board charges the battery fully (4.2 V) and that cannot be changed in software. "
+        "It has no battery protection chip, so use a battery with its own protection circuit and keep "
+        "\"Turn off when empty\" on. After turning off, plug in USB and the screen starts again. "
+        "Unplugging USB restarts the screen for a moment; that's how the board switches power. "
+        "On battery, hold the POWER button to turn the screen off or on.");
+    lv_label_set_long_mode(note, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(note, LV_PCT(100));
+
     lv_obj_t *g3 = group(c, "MAINTENANCE");
     wide_btn(g3, ICON_RESTART, "Restart", COL_CARD2, reboot_cb, NULL);
     wide_btn(g3, ICON_DELETE, "Factory reset", COL_ERR, factory_cb, NULL);
@@ -472,7 +514,7 @@ static void create(lv_obj_t *parent, int arg)
     s_sec = (arg > 0 && arg < SEC_COUNT) ? arg : SEC_GRID;
     s_tick = 0;
     memset(s_sum, 0, sizeof(s_sum));
-    s_info = s_time_lbl = s_name_ta = NULL;
+    s_info = s_time_lbl = s_name_ta = s_bat_info = NULL;
     if (s_sec == SEC_GRID) { build_grid(parent); refresh_grid(); return; }
 
     char title[48];
@@ -528,6 +570,20 @@ static void refresh(void)
                  (unsigned)(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                  up / 86400, (up / 3600) % 24, (up / 60) % 60, up % 60);
         ui_set_text(s_info, t);
+        if (s_bat_info) {
+            bat_info_t b;
+            battery_get(&b);
+            if (!g_settings.bat_cap_mah) snprintf(t, sizeof(t), "Battery monitoring is off (No battery).");
+            else if (b.state == BAT_NONE) snprintf(t, sizeof(t), "No battery connected.");
+            else {
+                int n = snprintf(t, sizeof(t), "%s  -  %s%d%%  -  %d.%02d V", battery_state_str(b.state),
+                                 b.state == BAT_CHARGING ? "about " : "", b.soc, b.mv / 1000, (b.mv % 1000) / 10);
+                if (b.minutes_left >= 0)
+                    snprintf(t + n, sizeof(t) - n, "\nAbout %d h %02d min left at this brightness", b.minutes_left / 60,
+                             b.minutes_left % 60);
+            }
+            ui_set_text(s_bat_info, t);
+        }
     }
 }
 

@@ -131,6 +131,10 @@ Press the bezel into the recess, and the magnets will pull it home. To take it o
 
 The buttons give you POWER, BOOT and RESET from the top of the case, and the USB-C ports are open on the right-hand side.
 
+![Button detail](export/build-14-buttons-detail.png)
+
+On battery, hold **POWER** to turn the screen off or on. The PWR light on the back of the board stays on while it's off and draws a little from the battery, so unplug the battery if you store the screen for a long time.
+
 Next, [install the firmware](../docs/INSTALL.md) if you haven't yet. You can still reach the USB-C port with the case closed.
 
 ---
