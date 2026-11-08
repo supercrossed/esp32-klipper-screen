@@ -588,8 +588,17 @@ static void show_top(void)
     lv_label_set_text(s_title, s_cur->title);
     if (s_depth > 1) lv_obj_remove_flag(s_back_btn, LV_OBJ_FLAG_HIDDEN);
     else lv_obj_add_flag(s_back_btn, LV_OBJ_FLAG_HIDDEN);
-    /* without the back button (88 px + 12 px gap) the spacer takes its place */
-    if (s_mark_spacer) lv_obj_set_width(s_mark_spacer, MARK_SPACER_W + (s_depth > 1 ? 0 : 100));
+    /* Home (no back button): the title sits at the far left, left of the
+     * button marks, in their bold font. Other pages: back button, a spacer
+     * past the marks, then the title. */
+    bool home = s_depth <= 1;
+    if (s_mark_spacer) {
+        if (home) lv_obj_add_flag(s_mark_spacer, LV_OBJ_FLAG_HIDDEN);
+        else lv_obj_remove_flag(s_mark_spacer, LV_OBJ_FLAG_HIDDEN);
+    }
+    lv_obj_set_style_text_font(s_title, home && s_mark_spacer ? ui_font_bold(24) : FONT_L, 0);
+    /* line the home title up with the printer cards (content padding 16, header padding 10) */
+    lv_obj_set_style_pad_left(s_title, home && s_mark_spacer ? 6 : 0, 0);
     s_cur->create(s_content, s_stack[s_depth - 1].arg);
     ESP_LOGI(TAG, "page %d (depth %d), free internal %u, psram %u", id, s_depth,
              (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
@@ -886,7 +895,7 @@ static void build_shell(void)
     lv_obj_add_flag(s_upd_btn, LV_OBJ_FLAG_HIDDEN);
     build_battery();
     s_wifi_lbl = ui_label(s_header, FONT_L, COL_MUTED, "");
-    s_clock_lbl = ui_label(s_header, FONT_L, COL_TEXT, "--:--");
+    s_clock_lbl = ui_label(s_header, ui_font_bold(24), COL_TEXT, "--:--");
     hdr_btn(ICON_SETTINGS, settings_cb);
     build_button_marks();
 
