@@ -19,4 +19,5 @@ case/export/_render/
 
 # Fusion design notes (local only)
 case/DESIGN.md
+case/fusion/
 case/export/BUILD_GUIDE.md
