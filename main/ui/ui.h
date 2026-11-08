@@ -99,4 +99,5 @@ void        ui_apply_brightness(void);
 void        ui_set_text(lv_obj_t *lbl, const char *txt);   /* only redraws on change */
 void        ui_alert_tick(void);                           /* job-ended banners (ui_alert.c) */
 void        ui_update_dialog(void);                        /* release notes + confirm (when an update is available) */
+void        ui_update_tick(void);                          /* opens the progress view when an install starts by itself */
 void        ui_keyboard_setup(lv_obj_t *kb);               /* custom layouts (USER_1 = IP numpad) */

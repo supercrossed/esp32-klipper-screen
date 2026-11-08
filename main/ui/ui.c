@@ -623,6 +623,7 @@ static void tick_cb(lv_timer_t *t)
 
     theme_tick();
     ui_alert_tick();
+    ui_update_tick();
     if (s_cur && s_cur->refresh) s_cur->refresh();
     s_ui_beat = esp_timer_get_time();
 }

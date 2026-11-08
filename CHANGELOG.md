@@ -2,6 +2,14 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
+## [0.4.8] - 2026-11-07
+
+### Fixed
+- **Checking for updates no longer fails with "Couldn't reach GitHub"** after the screen has been on for a while. The update check now uses much less of the screen's small internal memory.
+- If memory is still tight when you tap **Update now**, the screen restarts first and then installs the update by itself straight after the restart. The progress bar shows up on its own.
+
+If your screen shows "Couldn't reach GitHub", restart it (Settings → Device → Restart), then check for updates within a few minutes to install this version.
+
 ## [0.4.7] - 2026-11-07
 
 ### Added
@@ -122,6 +130,7 @@ First public release.
 - USB serial console for headless setup and debugging.
 - Web installer (GitHub Pages) and CI release builds.
 
+[0.4.8]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.8
 [0.4.7]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.7
 [0.4.6]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.6
 [0.4.5]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.5

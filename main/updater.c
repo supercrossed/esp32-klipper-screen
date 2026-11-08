@@ -7,8 +7,12 @@
  *    bootloader rolls back automatically if the new image never marks itself
  *    valid (we do that once Wi-Fi is up and the UI has run for a while).
  *
- * Work runs on short-lived tasks with internal stacks (flash writes need that);
- * nothing is resident between checks except this small state struct.
+ * The check runs on a short-lived task with its stack in PSRAM. The install task
+ * writes flash, so its stack must be internal RAM; that RAM fragments over a long
+ * uptime, so when no big enough block is left the screen restarts first and
+ * installs straight after boot (flag in NVS, one shot).
+ * TLS uses software AES (CONFIG_MBEDTLS_HARDWARE_AES=n): the AES DMA engine needs
+ * descriptors in internal DMA memory and failed once that was fragmented.
  */
 #include "updater.h"
 #include <string.h>
@@ -27,6 +31,7 @@
 #include "esp_heap_caps.h"
 #include "esp_system.h"
 #include "cJSON.h"
+#include "nvs.h"
 #include "wifi_mgr.h"
 
 static const char *TAG = "updater";
@@ -35,6 +40,8 @@ static const char *TAG = "updater";
 #define API_URL     "https://api.github.com/repos/" REPO "/releases/latest"
 #define APP_ASSET   "esp32-klipper-screen-app.bin"
 #define CHECK_EVERY_US  (6LL * 3600 * 1000000)
+#define INSTALL_STACK   8192
+#define INSTALL_MIN_BLOCK (INSTALL_STACK + 12 * 1024)   /* stack + room for TLS / lwIP */
 
 static SemaphoreHandle_t s_mtx;
 static upd_info_t *s_info;           /* PSRAM */
@@ -42,6 +49,9 @@ static char s_asset_url[320];
 static volatile bool s_busy;
 static esp_timer_handle_t s_timer;
 static bool s_marked_valid;
+static bool s_auto_install;           /* restarted to install: do it as soon as the check finds it */
+static bool s_restarted;              /* this boot came from a restart-to-install: never restart again */
+static esp_timer_handle_t s_auto_timer;
 
 #define LOCK()   xSemaphoreTake(s_mtx, portMAX_DELAY)
 #define UNLOCK() xSemaphoreGive(s_mtx)
@@ -175,6 +185,16 @@ static void check_task(void *arg)
     UNLOCK();
     ESP_LOGI(TAG, "latest %s, running %s%s", s_info->latest, s_info->current, newer ? " -> update available" : "");
     cJSON_Delete(j);
+    if (s_auto_install) {
+        s_auto_install = false;
+        if (newer) {
+            esp_http_client_cleanup(h);
+            heap_caps_free(buf);
+            s_busy = false;
+            updater_install();
+            vTaskDeleteWithCaps(NULL);
+        }
+    }
     goto out;
 
 fail_mem:
@@ -183,7 +203,7 @@ out:
     if (h) esp_http_client_cleanup(h);
     heap_caps_free(buf);
     s_busy = false;
-    vTaskDelete(NULL);
+    vTaskDeleteWithCaps(NULL);
 }
 
 static void install_task(void *arg)
@@ -252,6 +272,32 @@ static void timer_cb(void *arg)
     updater_check_now();
 }
 
+static bool take_boot_flag(void)
+{
+    nvs_handle_t h;
+    uint8_t v = 0;
+    if (nvs_open("upd", NVS_READWRITE, &h) != ESP_OK) return false;
+    if (nvs_get_u8(h, "boot", &v) == ESP_OK) {
+        nvs_erase_key(h, "boot");
+        nvs_commit(h);
+    }
+    nvs_close(h);
+    return v == 1;
+}
+
+/* After a restart-to-install: check as soon as Wi-Fi is up (gives up after ~2 min). */
+static void auto_cb(void *arg)
+{
+    static int tries;
+    if (wifi_mgr_state() == WIFI_ST_CONNECTED || ++tries > 24) {
+        esp_timer_stop(s_auto_timer);
+        if (tries <= 24) updater_check_now();
+        else s_auto_install = false;
+    }
+}
+
+static void restart_cb(void *arg) { esp_restart(); }
+
 void updater_init(void)
 {
     s_mtx = xSemaphoreCreateMutex();
@@ -268,6 +314,13 @@ void updater_init(void)
     const esp_timer_create_args_t ta = { .callback = timer_cb, .name = "upd" };
     esp_timer_create(&ta, &s_timer);
     esp_timer_start_once(s_timer, 60LL * 1000000);   /* first check a minute after boot */
+
+    if (take_boot_flag()) {
+        ESP_LOGI(TAG, "restarted to install an update");
+        s_auto_install = s_restarted = true;
+        const esp_timer_create_args_t aa = { .callback = auto_cb, .name = "upd_auto" };
+        if (esp_timer_create(&aa, &s_auto_timer) == ESP_OK) esp_timer_start_periodic(s_auto_timer, 5LL * 1000000);
+    }
 }
 
 void updater_check_now(void)
@@ -278,8 +331,7 @@ void updater_check_now(void)
     } else {
         s_busy = true;
         set_state(UPD_CHECKING, NULL);
-        /* internal stack: TLS + no flash access needed, but keep it simple and small */
-        if (xTaskCreate(check_task, "upd_check", 8192, NULL, 3, NULL) != pdPASS) {
+        if (xTaskCreateWithCaps(check_task, "upd_check", 8192, NULL, 3, NULL, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) != pdPASS) {
             s_busy = false;
             set_state(UPD_ERROR, "Out of memory");
         }
@@ -292,11 +344,33 @@ void updater_install(void)
 {
     if (s_busy || !s_info || !s_info->available) return;   /* also allows a retry after a failure */
     s_busy = true;
-    set_state(UPD_INSTALLING, NULL);
-    /* internal stack: this task writes flash */
-    if (xTaskCreate(install_task, "upd_install", 8192, NULL, 4, NULL) != pdPASS) {
+    LOCK();
+    s_info->state = UPD_INSTALLING;
+    s_info->progress = 0;
+    s_info->error[0] = 0;
+    UNLOCK();
+    /* internal stack: this task writes flash. Not enough left -> restart and install after boot. */
+    size_t big = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if ((big >= INSTALL_MIN_BLOCK || s_restarted) &&
+        xTaskCreate(install_task, "upd_install", INSTALL_STACK, NULL, 4, NULL) == pdPASS)
+        return;
+    if (s_restarted) {
         s_busy = false;
-        set_state(UPD_ERROR, "Out of memory");
+        set_state(UPD_ERROR, "Not enough memory to install. Restart the screen and try again.");
+    } else {
+        ESP_LOGW(TAG, "largest internal block %u: restarting to install", (unsigned)big);
+        nvs_handle_t h;
+        if (nvs_open("upd", NVS_READWRITE, &h) == ESP_OK) {
+            nvs_set_u8(h, "boot", 1);
+            nvs_commit(h);
+            nvs_close(h);
+        }
+        set_state(UPD_INSTALLING, "Restarting first to free up memory. The update continues by itself after the restart.");
+        static esp_timer_handle_t rt;
+        const esp_timer_create_args_t ra = { .callback = restart_cb, .name = "upd_rst" };
+        if (!rt) esp_timer_create(&ra, &rt);
+        if (rt) esp_timer_start_once(rt, 3LL * 1000000);
+        else esp_restart();
     }
 }
 

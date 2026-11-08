@@ -24,7 +24,9 @@ static void progress_tick(lv_timer_t *t)
 {
     updater_get(&s_info);
     char b[96];
-    if (s_info.state == UPD_INSTALLING) {
+    if (s_info.state == UPD_INSTALLING && s_info.error[0]) {
+        snprintf(b, sizeof(b), "%s", s_info.error);   /* restarting first to free memory */
+    } else if (s_info.state == UPD_INSTALLING) {
         lv_bar_set_value(s_bar, s_info.progress, LV_ANIM_OFF);
         snprintf(b, sizeof(b), "Downloading and installing...  %d%%", s_info.progress);
     } else if (s_info.state == UPD_DONE) {
@@ -45,9 +47,8 @@ static void progress_tick(lv_timer_t *t)
     ui_set_text(s_status, b);
 }
 
-static void confirm_cb(lv_event_t *e)
+static void progress_view(void)
 {
-    updater_install();
     lv_obj_clean(s_buttons);
     lv_obj_set_flex_flow(s_buttons, LV_FLEX_FLOW_COLUMN);
     s_bar = lv_bar_create(s_buttons);
@@ -56,15 +57,19 @@ static void confirm_cb(lv_event_t *e)
     lv_obj_set_style_bg_color(s_bar, COL_OK, LV_PART_INDICATOR);
     s_status = ui_label(s_buttons, FONT_M, COL_TEXT, "Starting download...");
     ui_label(s_buttons, FONT_S, COL_MUTED, "Keep the display powered. It restarts by itself when done.");
+    lv_label_set_long_mode(s_status, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(s_status, LV_PCT(100));
     s_timer = lv_timer_create(progress_tick, 250, NULL);
 }
 
-void ui_update_dialog(void)
+static void confirm_cb(lv_event_t *e)
 {
-    close_dialog();
-    updater_get(&s_info);
-    if (!s_info.available || s_info.state == UPD_INSTALLING || s_info.state == UPD_DONE) return;
+    updater_install();
+    progress_view();
+}
 
+static void build_dialog(void)
+{
     s_overlay = lv_obj_create(lv_layer_top());
     lv_obj_set_size(s_overlay, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(s_overlay, lv_color_black(), 0);
@@ -114,4 +119,21 @@ void ui_update_dialog(void)
     lv_obj_set_flex_grow(b1, 1);
     lv_obj_t *b2 = ui_button(s_buttons, ICON_UPDATE, "Update now", COL_OK, confirm_cb, NULL);
     lv_obj_set_flex_grow(b2, 1);
+}
+
+void ui_update_dialog(void)
+{
+    close_dialog();
+    updater_get(&s_info);
+    if (!s_info.available || s_info.state == UPD_INSTALLING || s_info.state == UPD_DONE) return;
+    build_dialog();
+}
+
+/* An install that starts on its own (after a restart-to-install) gets the progress view. */
+void ui_update_tick(void)
+{
+    if (s_overlay || updater_state() != UPD_INSTALLING) return;
+    updater_get(&s_info);
+    build_dialog();
+    progress_view();
 }
