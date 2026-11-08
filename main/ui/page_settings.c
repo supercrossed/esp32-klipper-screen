@@ -496,8 +496,8 @@ static void build_device(lv_obj_t *c)
         "The charge level is worked out from the battery voltage, so it's an estimate, especially while charging. "
         "The type picks the matching voltage curve; the size is used for the time-left estimate. "
         "The board charges the battery fully (4.2 V) and that cannot be changed in software. "
-        "It has no battery protection chip, so use a battery with its own protection circuit and keep "
-        "\"Turn off when empty\" on. After turning off, plug in USB and the screen starts again. "
+        "A protected cell is preferred but not required; keep \"Turn off when empty\" on so the cell never "
+        "runs flat. After turning off, plug in USB and the screen starts again. "
         "Unplugging USB restarts the screen for a moment; that's how the board switches power. "
         "On battery, hold the POWER button to turn the screen off or on.");
     lv_label_set_long_mode(note, LV_LABEL_LONG_WRAP);
