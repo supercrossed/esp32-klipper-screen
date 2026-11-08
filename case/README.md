@@ -48,9 +48,9 @@ Suggested settings are PLA or PETG, 0.2 mm layers, 3 walls and 15–20% infill. 
 | 4 | M3×12 socket-head screw | Brackets to front frame |
 | 4 | M3×6 (or M2.5×6) socket-head screw | Brackets to the display's screw mounts |
 | 8 | 6×2 mm neodymium magnet | 4 in the frame recess, 4 in the bezel |
-| 1 | 18650 cell (protected) or a flat LiPo pouch, optional | Battery cradle, with an MX1.25 lead to the board's BAT connector |
+| 1 | 18650 cell or a flat LiPo pouch, optional | Battery cradle, with an MX1.25 lead to the board's BAT connector |
 
-The board has no battery protection chip of its own, so use a protected cell or a pack with a protection circuit.
+One cell is all it takes: the board charges it from USB and stops at full (4.2 V), and the screen turns itself off before the cell runs flat. A protected cell is preferred but not required. The one thing to know: switched off with **POWER**, the board still draws a little current, so unplug an unprotected cell if you store the screen for weeks.
 
 ### Tools
 - Soldering iron with a heat-set insert tip, or a plain conical tip

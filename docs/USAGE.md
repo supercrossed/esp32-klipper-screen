@@ -50,7 +50,7 @@ The **left bar** holds the printer's main sections: Status, Move, Extrude, MMU a
 - Tap a lane to load it (AFC `CHANGE_TOOL LANE=…`, Happy Hare `MMU_CHANGE_TOOL TOOL=…`) or to unload it. **Unload** and, on Happy Hare, **Home MMU** sit in the header. Lane changes are blocked while printing.
 
 ### Files
-Tap **Files** in the left menu to open the printer's G-code files, newest first. Pick one to see its picture, print time, filament, layer height and slicer, then tap **Start print**. You'll be asked to confirm, and it won't start while the printer is busy.
+Tap **Files** in the left menu to see the printer's 5 most recent G-code files. Pick one to see its picture, print time, filament, layer height and slicer, then tap **Start print**. You'll be asked to confirm, and it won't start while the printer is busy.
 
 ### Macros
 Every `gcode_macro` whose name doesn't start with `_`, sorted. Tap one to run it; each asks for confirmation.
@@ -72,7 +72,7 @@ The printer's recent console, the same one shown in Mainsail or Fluidd, newest f
 Everything except *Start* asks for confirmation.
 
 ### History (right bar)
-Lifetime totals (jobs, print time, filament) and the last 50 jobs with result, date, duration and filament.
+Lifetime totals (jobs, print time, filament) and the 5 most recent jobs with result, date, duration and filament.
 
 ### Mesh (right bar)
 Shown when the printer has `[bed_mesh]`. **3D** draws the bed with the probed mesh on it as a coloured surface (blue is low, red is high), with the height exaggerated so small differences show. Drag to turn and tilt it, tap a probe point to read its X / Y / Z, and tap **Reset view** to go back to the default angle. **Top** shows one tile per probe point with its value, front of the bed at the bottom. Both have a colour scale with the lowest and highest values. You also get the range, saved profiles (tap to load), **Calibrate** (homes first if needed, and asks before starting) and **Clear**.
@@ -95,7 +95,7 @@ The top level is a grid of tiles:
 
 ## Battery
 
-The board has a **BAT** connector (MX1.25) for a single Li-ion or LiPo cell, such as a protected 18650. The board charges it from USB.
+The board has a **BAT** connector (MX1.25) for a single Li-ion or LiPo cell, such as an 18650. The board charges it from USB and stops at full. A protected cell is preferred but not required.
 
 - **Battery icon.** While a battery is connected, an icon in the top bar shows its charge in %: green above 50%, yellow down to 21%, red at 20% and below. A lightning bolt means it's charging. Tap the icon to open the battery settings.
 - **Settings → Device → Battery** shows the status (*Charging*, *Charged*, *On battery*), the charge, the voltage and, on battery, roughly how long is left at the current brightness. Pick your **battery type** there: *Li-ion (18650)* for round cells, *LiPo* for flat packs. Each has its own voltage curve. Also pick the **battery size**; it's used for the time-left estimate and to correct the reading for the board's load. *No battery* turns all of this off.

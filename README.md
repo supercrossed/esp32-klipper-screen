@@ -1,5 +1,7 @@
 # ESP32 Klipper Screen
 
+*Made with [Claude](https://claude.ai): the firmware, the docs, and even the CAD for the case. A human still had to hold the screwdriver.*
+
 A small wireless touchscreen that controls **all of your Klipper printers** from one place.
 Carry it around the workshop, glance at what every machine is doing, and tap into any printer to control it.
 
