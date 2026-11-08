@@ -11,7 +11,7 @@ It runs on the [Waveshare ESP32-P4 5″ touch display](https://www.waveshare.com
 
 ### **[→ Install it from your browser](https://supercrossed.github.io/esp32-klipper-screen/)**
 
-![Home screen](docs/images/home.png)
+![ESP32 Klipper Screen in its 3D-printed desk case](case/export/build-01-finished-front.png)
 
 ## What it does
 
@@ -32,6 +32,8 @@ It runs on the [Waveshare ESP32-P4 5″ touch display](https://www.waveshare.com
 - **Looks the way you like.** Light, dark, or automatic by sunrise and sunset, in six accent colours. It also connects to Wi-Fi on first start, keeps the time, and works in landscape or portrait.
 
 ## Screenshots
+
+![Home screen](docs/images/home.png)
 
 | | |
 |---|---|
@@ -63,12 +65,9 @@ Your printers need **Klipper** with **Moonraker**, which comes with Mainsail, Fl
 
 ## Desk case
 
-![The screen in its 3D-printed desk case](case/export/build-01-finished-front.png)
-
-A printable desk case holds the screen at a 20° tilt, with a magnetic bezel, buttons for POWER, BOOT and RESET, and room for a battery. Every part prints without supports.
+The case in the picture at the top is 3D-printable. It holds the screen at a 20° tilt, with a magnetic bezel, buttons for POWER, BOOT and RESET, and room for a battery. Every part prints without supports.
 
 **[→ Build guide](case/README.md)**: print files, parts list and step-by-step assembly.
-
 ## Getting started
 
 1. Open the **[web installer](https://supercrossed.github.io/esp32-klipper-screen/)** in Chrome or Edge, plug in the display, and click **Install**.
