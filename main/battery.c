@@ -52,15 +52,20 @@ static adc_channel_t s_ch;
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
 static bat_info_t s_info = { .minutes_left = -1 };
 
-/* Resting voltage -> charge, down to 3.0 V (the lowest "Turn off when empty"
- * choice). Typical curves; the board has no fuel gauge to do better. */
+/* Cell voltage -> charge left, down to 3.0 V (the lowest "Turn off when empty"
+ * choice); the board has no fuel gauge to do better. */
 typedef struct { int16_t mv, pct; } ocv_pt_t;
-/* Li-ion cylindrical cells (18650 / 21700, NMC-type, e.g. LG HG2, Samsung
- * 30Q/35E): long flat middle around 3.6-3.7 V, steep drop below ~3.5 V. */
+/* Li-ion cylindrical cells: the average of measured C/20 (100-150 mA)
+ * discharges of four cells, each scaled to its own capacity down to 3.0 V:
+ * LG HG2, Panasonic NCR18650PF and Samsung 30T (Kollmeyer, McMaster / UW-Madison,
+ * Mendeley Data) and Samsung INR18650-20R (CALCE, UMD). They agree within
+ * ~30-75 mV between 15% and 50%. See tools/battery_curve/. Voltages are at
+ * ~CURVE_MA of load, not fully rested. */
+#define CURVE_MA 130
 static const ocv_pt_t OCV_LIION[] = {
-    { 4190, 100 }, { 4060, 90 }, { 3940, 80 }, { 3850, 70 }, { 3770, 60 }, { 3690, 50 },
-    { 3650, 40 },  { 3610, 30 }, { 3570, 20 }, { 3480, 10 }, { 3400, 6 },  { 3300, 3 },
-    { 3000, 0 },
+    { 4180, 100 }, { 4095, 95 }, { 4059, 90 }, { 4024, 85 }, { 3976, 80 }, { 3923, 75 }, { 3878, 70 },
+    { 3837, 65 },  { 3788, 60 }, { 3733, 55 }, { 3690, 50 }, { 3654, 45 }, { 3624, 40 }, { 3599, 35 },
+    { 3570, 30 },  { 3534, 25 }, { 3494, 20 }, { 3442, 15 }, { 3376, 10 }, { 3300, 5 },  { 3000, 0 },
 };
 /* LiPo pouches: hold a higher voltage through the middle */
 static const ocv_pt_t OCV_LIPO[] = {
@@ -254,15 +259,16 @@ static void bat_task(void *arg)
             if (st == BAT_CHARGING && ema >= 4170) st = BAT_FULL;
 
             int v;   /* estimated resting voltage */
-            if (st == BAT_DISCHARGING) v = ema + load_ma() * cell_mohm() / 1000;
-            else if (st == BAT_CHARGING) v = ema - CHARGE_MA * cell_mohm() / 1000;
+            /* the curves are at CURVE_MA of discharge: correct to that load */
+            if (st == BAT_DISCHARGING) v = ema + (load_ma() - CURVE_MA) * cell_mohm() / 1000;
+            else if (st == BAT_CHARGING) v = ema - (CHARGE_MA + CURVE_MA) * cell_mohm() / 1000;
             else v = 4200;
             /* 0% = the "Turn off when empty" point, so the number reaches 0 just as
              * the screen turns itself off. The cut-off is checked on the loaded
              * voltage, so compare against its resting equivalent. */
             float target = soc_from_mv(v);
             if (g_settings.bat_cut_mv) {
-                int floor_pct = soc_from_mv(g_settings.bat_cut_mv + load_ma() * cell_mohm() / 1000);
+                int floor_pct = soc_from_mv(g_settings.bat_cut_mv + (load_ma() - CURVE_MA) * cell_mohm() / 1000);
                 if (floor_pct < 100) target = (target - floor_pct) * 100.0f / (100 - floor_pct);
                 if (target < 0) target = 0;
             }
