@@ -88,7 +88,7 @@ The top level is a grid of tiles:
 |---|---|
 | **Network** | Connection details (SSID, IP, gateway, signal, MAC) and **Choose a network** |
 | **Printers** | Edit or remove printers, add one, refresh rates |
-| **Display** | Theme (**Dark / Light / Auto** by sunrise and sunset), accent colour, brightness, screen rotation (a rotation change restarts the display) |
+| **Display** | **Dark / Light / Auto** (by sunrise and sunset), colour theme (Slate, Midnight, Forest, Ember, Ocean, Rose, Graphite; each has a dark and a light version), accent colour (*Theme* uses the theme's own; picking a theme resets it to that), brightness, screen rotation (a rotation change restarts the display) |
 | **Time** | Clock and time zone. *Auto* detects it once from your public IP |
 | **Updates** | Installed and latest version, **Check for updates**, **View update** |
 | **Device** | Device name (network hostname), **alerts and sound** (banner on/off, volume, test sound), **battery**, firmware and memory info, Restart, Factory reset |

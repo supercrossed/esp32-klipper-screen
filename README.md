@@ -27,7 +27,7 @@ It runs on the Waveshare ESP32-P4 touch displays: [5″](https://www.waveshare.c
 - **Watch the camera** full screen.
 - **Multi-material and Spoolman.** AFC (Box Turtle) and Happy Hare: see which filament is in each lane and where the loaded one is. With Spoolman, browse your spools and filaments, pick the active spool, and show a spool's QR code to scan.
 - **Runs on a battery** too: plug an 18650 or LiPo into the board and the top bar shows its charge.
-- **Looks the way you like.** Light, dark, or automatic by sunrise and sunset, in six accent colours. It also connects to Wi-Fi on first start, keeps the time, and works in landscape or portrait.
+- **Looks the way you like.** Seven colour themes, each in light and dark, switched automatically at sunrise and sunset if you like, plus six accent colours. It also connects to Wi-Fi on first start, keeps the time, and works in landscape or portrait.
 
 ## Screenshots
 

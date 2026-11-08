@@ -50,25 +50,40 @@ static const char *TAG = "ui";
 static void theme_tick(void);
 
 /* ── palettes ────────────────────────────────────────────────────────── */
-static const ui_palette_t PAL_DARK = {
-    .bg = LV_COLOR_MAKE(0x0E, 0x11, 0x16), .header = LV_COLOR_MAKE(0x15, 0x1A, 0x21),
-    .card = LV_COLOR_MAKE(0x1A, 0x20, 0x29), .card2 = LV_COLOR_MAKE(0x23, 0x2B, 0x36),
-    .border = LV_COLOR_MAKE(0x2E, 0x38, 0x46), .text = LV_COLOR_MAKE(0xE8, 0xED, 0xF2),
-    .muted = LV_COLOR_MAKE(0x8B, 0x97, 0xA6), .accent = LV_COLOR_MAKE(0x3B, 0xA7, 0xF0),
-    .ok = LV_COLOR_MAKE(0x3C, 0xCB, 0x7F), .warn = LV_COLOR_MAKE(0xF5, 0xA5, 0x24),
-    .err = LV_COLOR_MAKE(0xF0, 0x56, 0x4A), .hot = LV_COLOR_MAKE(0xFF, 0x7A, 0x45),
+/* Status colours, shared by every theme so green/amber/red always mean the same. */
+static const uint32_t ST_DARK[4]  = { 0x3CCB7F, 0xF5A524, 0xF0564A, 0xFF7A45 };   /* ok warn err hot */
+static const uint32_t ST_LIGHT[4] = { 0x239A58, 0xE08A00, 0xD63A2F, 0xE45E22 };
+
+/* A theme's surfaces and its own accent, for one mode. */
+typedef struct { uint32_t bg, header, card, card2, border, text, muted, accent; } surf_t;
+static const struct { const char *name; surf_t dark, light; } THEMES[] = {
+    { "Slate",
+      { 0x0E1116, 0x151A21, 0x1A2029, 0x232B36, 0x2E3846, 0xE8EDF2, 0x8B97A6, 0x3BA7F0 },
+      { 0xEEF1F5, 0xFFFFFF, 0xFFFFFF, 0xE4E9EF, 0xD3DAE3, 0x171C24, 0x5C6878, 0x1E7FD8 } },
+    { "Midnight",
+      { 0x0B0E1A, 0x11152A, 0x161B33, 0x1F2542, 0x2C3358, 0xE6E8F5, 0x8F95B8, 0x8B7CF6 },
+      { 0xEEF0FA, 0xFFFFFF, 0xFFFFFF, 0xE2E5F5, 0xCED3EA, 0x161A33, 0x5A6088, 0x5B4BD6 } },
+    { "Forest",
+      { 0x0C130F, 0x111A14, 0x16211A, 0x1E2C23, 0x2A3B30, 0xE5EEE7, 0x8DA394, 0x4ADE80 },
+      { 0xEDF3EE, 0xFBFDFB, 0xFBFDFB, 0xE0EAE2, 0xCADACE, 0x16211A, 0x53675A, 0x15803D } },
+    { "Ember",
+      { 0x14100D, 0x1B1612, 0x221B16, 0x2D241D, 0x3D3128, 0xF2EAE3, 0xA8978A, 0xFB923C },
+      { 0xF6F0E8, 0xFFFBF6, 0xFFFBF6, 0xEDE3D7, 0xDDCFBF, 0x231A13, 0x6E5D50, 0xC2410C } },
+    { "Ocean",
+      { 0x07141A, 0x0C1C24, 0x10232C, 0x172F3A, 0x22404D, 0xE2F1F5, 0x86A6B2, 0x22D3EE },
+      { 0xEAF4F7, 0xFFFFFF, 0xFFFFFF, 0xDCEBF0, 0xC5DCE4, 0x0E2530, 0x4F6E7A, 0x0E7490 } },
+    { "Rose",
+      { 0x150D12, 0x1D1219, 0x24161F, 0x301E2A, 0x432A3A, 0xF5E8EF, 0xB096A5, 0xF472B6 },
+      { 0xFAEFF4, 0xFFFBFD, 0xFFFBFD, 0xF1E0E8, 0xE6CCD8, 0x2A1520, 0x7A5868, 0xBE185D } },
+    { "Graphite",
+      { 0x000000, 0x0A0A0A, 0x141414, 0x1F1F1F, 0x2E2E2E, 0xF2F2F2, 0x9A9A9A, 0xA3E635 },
+      { 0xF2F2F2, 0xFFFFFF, 0xFFFFFF, 0xE6E6E6, 0xD4D4D4, 0x111111, 0x5E5E5E, 0x4D7C0F } },
 };
-static const ui_palette_t PAL_LIGHT = {
-    .bg = LV_COLOR_MAKE(0xEE, 0xF1, 0xF5), .header = LV_COLOR_MAKE(0xFF, 0xFF, 0xFF),
-    .card = LV_COLOR_MAKE(0xFF, 0xFF, 0xFF), .card2 = LV_COLOR_MAKE(0xE4, 0xE9, 0xEF),
-    .border = LV_COLOR_MAKE(0xD3, 0xDA, 0xE3), .text = LV_COLOR_MAKE(0x17, 0x1C, 0x24),
-    .muted = LV_COLOR_MAKE(0x5C, 0x68, 0x78), .accent = LV_COLOR_MAKE(0x1E, 0x7F, 0xD8),
-    .ok = LV_COLOR_MAKE(0x23, 0x9A, 0x58), .warn = LV_COLOR_MAKE(0xE0, 0x8A, 0x00),
-    .err = LV_COLOR_MAKE(0xD6, 0x3A, 0x2F), .hot = LV_COLOR_MAKE(0xE4, 0x5E, 0x22),
-};
+#define NTHEMES (int)(sizeof(THEMES) / sizeof(THEMES[0]))
 ui_palette_t g_pal;
 
-/* Accent colours: { name, dark-mode shade, light-mode shade } */
+/* Accent colours: { name, dark-mode shade, light-mode shade }. ACCENT_THEME
+ * (in app_settings.h) means "the theme's own accent". */
 static const struct { const char *name; uint32_t dark, light; } ACCENTS[] = {
     { "Blue",   0x3BA7F0, 0x1E7FD8 },
     { "Orange", 0xFF8A3D, 0xD9620B },
@@ -79,13 +94,29 @@ static const struct { const char *name; uint32_t dark, light; } ACCENTS[] = {
 };
 #define NACCENTS (int)(sizeof(ACCENTS) / sizeof(ACCENTS[0]))
 
-int ui_accent_count(void) { return NACCENTS; }
-lv_color_t ui_accent_preview(void)
+static int theme_idx(void) { return g_settings.theme < NTHEMES ? g_settings.theme : 0; }
+static const surf_t *surf(int theme, bool light) { return light ? &THEMES[theme].light : &THEMES[theme].dark; }
+
+int ui_theme_count(void) { return NTHEMES; }
+const char *ui_theme_name(int i) { return i >= 0 && i < NTHEMES ? THEMES[i].name : ""; }
+void ui_theme_preview(int i, lv_color_t *bg, lv_color_t *card, lv_color_t *accent, lv_color_t *text)
 {
-    int a = g_settings.accent < NACCENTS ? g_settings.accent : 0;
-    return lv_color_hex(g_settings.light_mode ? ACCENTS[a].light : ACCENTS[a].dark);
+    if (i < 0 || i >= NTHEMES) i = 0;
+    const surf_t *s = surf(i, g_settings.light_mode);
+    *bg = lv_color_hex(s->bg);
+    *card = lv_color_hex(s->card2);
+    *accent = lv_color_hex(s->accent);
+    *text = lv_color_hex(s->text);
 }
-const char *ui_accent_name(int i) { return i >= 0 && i < NACCENTS ? ACCENTS[i].name : ""; }
+
+int ui_accent_count(void) { return NACCENTS; }
+lv_color_t ui_accent_color(int i)
+{
+    bool light = g_settings.light_mode;
+    if (i < 0 || i >= NACCENTS) return lv_color_hex(surf(theme_idx(), light)->accent);
+    return lv_color_hex(light ? ACCENTS[i].light : ACCENTS[i].dark);
+}
+const char *ui_accent_name(int i) { return i >= 0 && i < NACCENTS ? ACCENTS[i].name : "Theme"; }
 
 /* Is the sun up right now? NOAA approximation; 07:00-19:00 local without a location. */
 static bool sun_is_up(void)
@@ -123,15 +154,71 @@ static bool want_light(void)
 
 static void palette_for(bool light)
 {
-    g_pal = light ? PAL_LIGHT : PAL_DARK;
-    int a = g_settings.accent < NACCENTS ? g_settings.accent : 0;
-    g_pal.accent = lv_color_hex(light ? ACCENTS[a].light : ACCENTS[a].dark);
+    const surf_t *s = surf(theme_idx(), light);
+    const uint32_t *st = light ? ST_LIGHT : ST_DARK;
+    g_pal = (ui_palette_t){
+        .bg = lv_color_hex(s->bg), .header = lv_color_hex(s->header), .card = lv_color_hex(s->card),
+        .card2 = lv_color_hex(s->card2), .border = lv_color_hex(s->border), .text = lv_color_hex(s->text),
+        .muted = lv_color_hex(s->muted), .accent = ui_accent_color(g_settings.accent),
+        .ok = lv_color_hex(st[0]), .warn = lv_color_hex(st[1]), .err = lv_color_hex(st[2]), .hot = lv_color_hex(st[3]),
+    };
 }
 
 lv_color_t ui_contrast(lv_color_t bg)
 {
     return lv_color_brightness(bg) > 150 ? lv_color_hex(0x111418) : lv_color_white();
 }
+
+/* LVGL's default theme paints button rows, dropdowns and slider/switch tracks
+ * in its own grey. A child theme repaints them from the colour theme; styles
+ * set on a widget directly still win. */
+static lv_theme_t *s_th_ext;
+static lv_style_t s_st_items, s_st_items_chk, s_st_field, s_st_track;
+
+static void ext_apply(lv_theme_t *th, lv_obj_t *obj)
+{
+    (void)th;
+    if (lv_obj_check_type(obj, &lv_buttonmatrix_class)) {
+        lv_obj_add_style(obj, &s_st_items, LV_PART_ITEMS);
+        lv_obj_add_style(obj, &s_st_items_chk, LV_PART_ITEMS | LV_STATE_CHECKED);
+    } else if (lv_obj_check_type(obj, &lv_dropdown_class) || lv_obj_check_type(obj, &lv_dropdownlist_class)) {
+        lv_obj_add_style(obj, &s_st_field, 0);
+    } else if (lv_obj_check_type(obj, &lv_switch_class) || lv_obj_check_type(obj, &lv_slider_class)) {
+        lv_obj_add_style(obj, &s_st_track, LV_PART_MAIN);
+    }
+}
+
+static void apply_lv_theme(lv_display_t *disp)
+{
+    static bool inited;
+    if (inited) {
+        lv_style_reset(&s_st_items);
+        lv_style_reset(&s_st_items_chk);
+        lv_style_reset(&s_st_field);
+        lv_style_reset(&s_st_track);
+    }
+    inited = true;
+    lv_style_init(&s_st_items);
+    lv_style_set_bg_color(&s_st_items, COL_CARD2);
+    lv_style_set_text_color(&s_st_items, COL_TEXT);
+    lv_style_init(&s_st_items_chk);
+    lv_style_set_bg_color(&s_st_items_chk, COL_ACCENT);
+    lv_style_set_text_color(&s_st_items_chk, ui_contrast(COL_ACCENT));
+    lv_style_init(&s_st_field);
+    lv_style_set_bg_color(&s_st_field, COL_CARD2);
+    lv_style_set_border_color(&s_st_field, COL_BORDER);
+    lv_style_set_text_color(&s_st_field, COL_TEXT);
+    lv_style_init(&s_st_track);
+    lv_style_set_bg_color(&s_st_track, COL_BORDER);
+
+    lv_theme_t *th = lv_theme_default_init(disp, COL_ACCENT, COL_WARN, !g_settings.light_mode, FONT_M);
+    if (!s_th_ext) s_th_ext = lv_theme_create();
+    lv_theme_copy(s_th_ext, th);
+    lv_theme_set_parent(s_th_ext, th);
+    lv_theme_set_apply_cb(s_th_ext, ext_apply);
+    lv_display_set_theme(disp, s_th_ext);
+}
+
 
 /* ── fonts ───────────────────────────────────────────────────────────────
  * Text: Inter (OFL), pre-rendered to bitmap fonts by tools/gen_fonts.py
@@ -817,8 +904,7 @@ void ui_init(lv_display_t *disp)
 
     g_settings.light_mode = want_light();
     palette_for(g_settings.light_mode);
-    lv_theme_t *th = lv_theme_default_init(disp, COL_ACCENT, COL_WARN, !g_settings.light_mode, FONT_M);
-    lv_display_set_theme(disp, th);
+    apply_lv_theme(disp);
     build_shell();
     lv_timer_create(tick_cb, 250, NULL);
     const esp_timer_create_args_t wa = { .callback = ui_watchdog, .name = "ui_wdt" };
@@ -921,8 +1007,7 @@ static void rebuild_themed(void)
     s_cur = NULL;
     lv_obj_clean(lv_screen_active());
     palette_for(g_settings.light_mode);
-    lv_theme_t *th = lv_theme_default_init(s_disp, COL_ACCENT, COL_WARN, !g_settings.light_mode, FONT_M);
-    lv_display_set_theme(s_disp, th);
+    apply_lv_theme(s_disp);
     build_shell();
     show_top();
 }
@@ -930,7 +1015,16 @@ static void rebuild_themed(void)
 void ui_set_theme(int mode, int accent)
 {
     if (mode >= 0) g_settings.theme_mode = mode;
-    if (accent >= 0 && accent < NACCENTS) g_settings.accent = accent;
+    if ((accent >= 0 && accent < NACCENTS) || accent == ACCENT_THEME) g_settings.accent = accent;
+    settings_save();
+    rebuild_themed();
+}
+
+void ui_set_palette(int theme)
+{
+    if (theme < 0 || theme >= NTHEMES) return;
+    g_settings.theme = theme;
+    g_settings.accent = ACCENT_THEME;   /* show the theme as designed; the accent can be changed after */
     settings_save();
     rebuild_themed();
 }

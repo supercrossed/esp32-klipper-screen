@@ -52,10 +52,14 @@ extern ui_palette_t g_pal;
 #define COL_HOT       (g_pal.hot)
 
 void       ui_set_light_mode(bool light);          /* re-themes and rebuilds the current screen */
-void       ui_set_theme(int mode, int accent);     /* mode 0 dark / 1 light / 2 auto, -1 = keep */
+void       ui_set_theme(int mode, int accent);     /* mode 0 dark / 1 light / 2 auto, -1 = keep; accent ACCENT_THEME = theme's own */
+void       ui_set_palette(int theme);              /* full theme; also resets the accent to the theme's */
+int        ui_theme_count(void);
+const char *ui_theme_name(int i);
+void       ui_theme_preview(int i, lv_color_t *bg, lv_color_t *card, lv_color_t *accent, lv_color_t *text);   /* in the current mode */
 int        ui_accent_count(void);
-lv_color_t ui_accent_preview(void);              /* current accent in the current mode */
-const char *ui_accent_name(int i);
+lv_color_t ui_accent_color(int i);               /* in the current mode; outside 0..count-1 = the theme's accent */
+const char *ui_accent_name(int i);               /* "Theme" for ACCENT_THEME */
 lv_color_t ui_contrast(lv_color_t bg);             /* black or white text for a background */
 
 /* Montserrat copies whose fallback is the matching Material Design Icons size,

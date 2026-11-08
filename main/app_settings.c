@@ -17,7 +17,8 @@ static void defaults(app_settings_t *s)
     strcpy(s->tz, "UTC0");
     s->tz_auto = 1;
     s->theme_mode = 0;
-    s->accent = 0;
+    s->accent = ACCENT_THEME;
+    s->theme = 0;
     s->alert_vol = 70;
     s->alerts = 1;
     s->bat_cap_mah = 2000;
@@ -50,6 +51,7 @@ void settings_load(void)
     nvs_get_u8(h, "light", &g_settings.light_mode);
     nvs_get_u8(h, "thmode", &g_settings.theme_mode);
     nvs_get_u8(h, "accent", &g_settings.accent);
+    nvs_get_u8(h, "theme", &g_settings.theme);
     nvs_get_u8(h, "hasloc", &g_settings.has_loc);
     {
         size_t l = sizeof(float);
@@ -88,6 +90,7 @@ void settings_save(void)
     nvs_set_u8(h, "light", g_settings.light_mode);
     nvs_set_u8(h, "thmode", g_settings.theme_mode);
     nvs_set_u8(h, "accent", g_settings.accent);
+    nvs_set_u8(h, "theme", g_settings.theme);
     nvs_set_u8(h, "hasloc", g_settings.has_loc);
     nvs_set_blob(h, "lat", &g_settings.lat, sizeof(float));
     nvs_set_blob(h, "lon", &g_settings.lon, sizeof(float));

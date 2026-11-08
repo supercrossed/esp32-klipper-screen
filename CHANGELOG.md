@@ -7,6 +7,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project u
 ### Added
 - **7″, 8″ and 10.1″ screens.** The firmware now also runs on Waveshare's ESP32-P4-WIFI6-Touch-LCD-7 (720 × 1280), -8 and -10.1 (800 × 1280). Each size has its own firmware in every release. The [web installer](https://supercrossed.github.io/esp32-klipper-screen/) asks which screen you have, and the screen's own updater only ever installs the firmware for its size.
 - Settings → Device shows which board the firmware is built for.
+- **Colour themes.** Settings → Display → Colour theme: Slate (the look so far), Midnight, Forest, Ember, Ocean, Rose and Graphite (true black). Each has its own dark and light version and follows Dark / Light / Auto. A theme brings its own accent colour; pick a different accent on top if you like, or *Theme* to go back to the theme's own. Buttons, dropdowns and switches now follow the theme too.
 
 ### Changed
 - Release file names now include the screen size (`5in`, `7in`, `8in`, `10in`), for example `esp32-klipper-screen-5in-v0.4.12.bin` and `bootloader-5in.bin`. The 5″ app file keeps its old name, so 5″ screens update as before.

@@ -137,8 +137,8 @@ static void orient_cb(lv_event_t *e)
 static void theme_async(void *u)
 {
     int v = (int)(intptr_t)u;
-    int mode = (v >> 8) & 0xFF, accent = v & 0xFF;
-    ui_set_theme(mode == 0xFF ? -1 : mode, accent == 0xFF ? -1 : accent);
+    int mode = (v >> 8) & 0xFF, accent = v & 0xFF;   /* accent 0xFE = the theme's own */
+    ui_set_theme(mode == 0xFF ? -1 : mode, accent == 0xFF ? -1 : accent == 0xFE ? ACCENT_THEME : accent);
 }
 static void mode_cb(lv_event_t *e)
 {
@@ -148,9 +148,17 @@ static void mode_cb(lv_event_t *e)
 }
 static void accent_cb(lv_event_t *e)
 {
-    int a = (int)(intptr_t)lv_event_get_user_data(e);
+    int a = (int)(intptr_t)lv_event_get_user_data(e);   /* ACCENT_THEME = the theme's own */
     if (a == g_settings.accent) return;
-    lv_async_call(theme_async, (void *)(intptr_t)((0xFF << 8) | a));
+    if (a == ACCENT_THEME) lv_async_call(theme_async, (void *)(intptr_t)((0xFF << 8) | 0xFE));
+    else lv_async_call(theme_async, (void *)(intptr_t)((0xFF << 8) | a));
+}
+static void palette_async(void *u) { ui_set_palette((int)(intptr_t)u); }
+static void palette_cb(lv_event_t *e)
+{
+    int t = (int)(intptr_t)lv_event_get_user_data(e);
+    if (t == g_settings.theme) return;
+    lv_async_call(palette_async, (void *)(intptr_t)t);
 }
 static void alerts_cb(lv_event_t *e)
 {
@@ -253,8 +261,13 @@ static void refresh_grid(void)
     ui_set_text(s_sum[SEC_NETWORK], t);
     snprintf(t, sizeof(t), "%d printer%s", printers_count(), printers_count() == 1 ? "" : "s");
     ui_set_text(s_sum[SEC_PRINTERS], t);
-    snprintf(t, sizeof(t), "%s  -  %s  -  %d%%", g_settings.theme_mode == 2 ? "Auto theme" : g_settings.light_mode ? "Light" : "Dark",
-             ui_accent_name(g_settings.accent), g_settings.brightness);
+    if (g_settings.accent == ACCENT_THEME)
+        snprintf(t, sizeof(t), "%s, %s  -  %d%%", ui_theme_name(g_settings.theme),
+                 g_settings.theme_mode == 2 ? "auto" : g_settings.light_mode ? "light" : "dark", g_settings.brightness);
+    else
+        snprintf(t, sizeof(t), "%s, %s, %s  -  %d%%", ui_theme_name(g_settings.theme),
+                 g_settings.theme_mode == 2 ? "auto" : g_settings.light_mode ? "light" : "dark",
+                 ui_accent_name(g_settings.accent), g_settings.brightness);
     ui_set_text(s_sum[SEC_DISPLAY], t);
     if (wifi_mgr_time_valid()) {
         time_t now = time(NULL);
@@ -336,6 +349,49 @@ static void build_display(lv_obj_t *c)
     lv_label_set_long_mode(mh, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(mh, LV_PCT(100));
 
+    ui_label(g, FONT_M, COL_TEXT, ICON_PALETTE "  Colour theme");
+    lv_obj_t *tg = lv_obj_create(g);
+    lv_obj_set_size(tg, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(tg, 0, 0);
+    lv_obj_set_style_border_width(tg, 0, 0);
+    lv_obj_set_style_pad_all(tg, 0, 0);
+    lv_obj_set_style_pad_gap(tg, 12, 0);
+    lv_obj_set_flex_flow(tg, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_remove_flag(tg, LV_OBJ_FLAG_SCROLLABLE);
+    for (int i = 0; i < ui_theme_count(); i++) {
+        /* a small picture of the theme in the current mode: its background,
+         * a card, and an accent bar */
+        lv_color_t bg, card, acc, txt;
+        ui_theme_preview(i, &bg, &card, &acc, &txt);
+        lv_obj_t *b = lv_button_create(tg);
+        lv_obj_set_size(b, 168, 108);
+        lv_obj_set_style_bg_color(b, bg, 0);
+        lv_obj_set_style_radius(b, 14, 0);
+        lv_obj_set_style_shadow_width(b, 0, 0);
+        lv_obj_set_style_pad_all(b, 10, 0);
+        lv_obj_set_style_border_width(b, i == g_settings.theme ? 4 : 1, 0);
+        lv_obj_set_style_border_color(b, i == g_settings.theme ? COL_TEXT : COL_BORDER, 0);
+        lv_obj_add_event_cb(b, palette_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+        lv_obj_t *cd = lv_obj_create(b);
+        lv_obj_remove_style_all(cd);
+        lv_obj_set_size(cd, LV_PCT(100), 30);
+        lv_obj_set_style_bg_opa(cd, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(cd, card, 0);
+        lv_obj_set_style_radius(cd, 8, 0);
+        lv_obj_align(cd, LV_ALIGN_TOP_MID, 0, 0);
+        lv_obj_remove_flag(cd, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_t *ab = lv_obj_create(cd);
+        lv_obj_remove_style_all(ab);
+        lv_obj_set_size(ab, LV_PCT(45), 10);
+        lv_obj_set_style_bg_opa(ab, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(ab, acc, 0);
+        lv_obj_set_style_radius(ab, 5, 0);
+        lv_obj_align(ab, LV_ALIGN_LEFT_MID, 10, 0);
+        lv_obj_remove_flag(ab, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_t *l = ui_label(b, FONT_S, txt, ui_theme_name(i));
+        lv_obj_align(l, LV_ALIGN_BOTTOM_LEFT, 2, 0);
+    }
+
     ui_label(g, FONT_M, COL_TEXT, ICON_PALETTE "  Accent colour");
     lv_obj_t *sw = lv_obj_create(g);
     lv_obj_set_size(sw, LV_PCT(100), LV_SIZE_CONTENT);
@@ -345,12 +401,9 @@ static void build_display(lv_obj_t *c)
     lv_obj_set_style_pad_gap(sw, 12, 0);
     lv_obj_set_flex_flow(sw, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_remove_flag(sw, LV_OBJ_FLAG_SCROLLABLE);
-    for (int i = 0; i < ui_accent_count(); i++) {
-        /* preview each accent in the current mode by asking the palette for it */
-        int saved = g_settings.accent;
-        g_settings.accent = i;
-        lv_color_t col = ui_accent_preview();
-        g_settings.accent = saved;
+    for (int k = -1; k < ui_accent_count(); k++) {
+        int i = k < 0 ? ACCENT_THEME : k;    /* first swatch: the theme's own accent */
+        lv_color_t col = ui_accent_color(k);
         lv_obj_t *b = lv_button_create(sw);
         lv_obj_set_size(b, 104, 84);
         lv_obj_set_style_bg_color(b, col, 0);

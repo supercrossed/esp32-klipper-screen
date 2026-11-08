@@ -15,7 +15,8 @@ typedef struct {
     char     device_name[32];
     uint8_t  light_mode;      /* currently applied: 0 dark, 1 light */
     uint8_t  theme_mode;      /* 0 dark, 1 light, 2 auto (sunrise/sunset) */
-    uint8_t  accent;          /* index into the accent colour list */
+    uint8_t  accent;          /* index into the accent colour list, or ACCENT_THEME */
+    uint8_t  theme;           /* full colour theme (index into ui.c THEMES), 0 = Slate */
     float    lat, lon;        /* location for sunrise/sunset (from the IP lookup) */
     uint8_t  has_loc;
     uint8_t  alert_vol;       /* 0 = alerts silent, else speaker volume % */
@@ -26,6 +27,7 @@ typedef struct {
 } app_settings_t;
 
 enum { BAT_TYPE_LIION = 0, BAT_TYPE_LIPO = 1 };
+#define ACCENT_THEME 0xFF   /* use the theme's own accent colour */
 
 extern app_settings_t g_settings;
 
