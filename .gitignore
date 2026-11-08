@@ -13,3 +13,6 @@ tools/.cache/
 *.swp
 .DS_Store
 Thumbs.db
+
+# case render scratch (screen quads / masks for overlay_screens.py)
+case/export/_render/

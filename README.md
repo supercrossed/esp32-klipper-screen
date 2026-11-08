@@ -61,6 +61,14 @@ Your printers need **Klipper** with **Moonraker**, which comes with Mainsail, Fl
 
 **Building your own?** A DIY version with a separate ESP32-P4 board, a display and a small Wi-Fi chip is planned. A setup guide and installer for it will be added to the docs.
 
+## Desk case
+
+![The screen in its 3D-printed desk case](case/export/build-01-finished-front.png)
+
+A printable desk case holds the screen at a 20° tilt, with a magnetic bezel, buttons for POWER, BOOT and RESET, and room for a battery. Every part prints without supports.
+
+**[→ Build guide](case/README.md)**: print files, parts list and step-by-step assembly.
+
 ## Getting started
 
 1. Open the **[web installer](https://supercrossed.github.io/esp32-klipper-screen/)** in Chrome or Edge, plug in the display, and click **Install**.
@@ -77,6 +85,7 @@ More detail is in the [install guide](docs/INSTALL.md).
 - [How to use it](docs/USAGE.md)
 - [Printer setup tips](docs/MOONRAKER.md): webcams, Spoolman, multi-material
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Desk case build guide](case/README.md)
 - [Building it yourself](docs/BUILDING.md) and [how it works](docs/ARCHITECTURE.md)
 - [What's new](CHANGELOG.md)
 

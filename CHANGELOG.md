@@ -2,6 +2,13 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
+## [0.4.7] - 2026-11-07
+
+### Added
+- **Desk case.** A 3D-printable desk case holds the screen at a 20° tilt, with a magnetic bezel, buttons for POWER, BOOT and RESET, and room for a battery. Every part prints without supports. The print files (`.3mf`) and the full assembly (`.step`) are attached to this release, and the [build guide](https://github.com/supercrossed/esp32-klipper-screen/blob/main/case/README.md) walks through printing and assembly.
+
+The screen's firmware is unchanged in this release.
+
 ## [0.4.6] - 2026-11-07
 
 ### Added
@@ -115,6 +122,7 @@ First public release.
 - USB serial console for headless setup and debugging.
 - Web installer (GitHub Pages) and CI release builds.
 
+[0.4.7]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.7
 [0.4.6]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.6
 [0.4.5]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.5
 [0.4.4]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.4

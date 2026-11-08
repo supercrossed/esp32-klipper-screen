@@ -1,0 +1,10 @@
+{
+  "autodeskProduct": "Fusion",
+  "type": "script",
+  "author": "",
+  "description": {
+    "": "Builds a tilted desk case, magnetic cover, back panel, buttons and clips for the Waveshare ESP32-P4-WIFI6-Touch-LCD-5, and exports STEP + 3MF to case/export."
+  },
+  "supportedOS": "windows|mac",
+  "editEnabled": true
+}

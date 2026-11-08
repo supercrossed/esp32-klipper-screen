@@ -84,6 +84,8 @@ jobs:
           | `bootloader.bin` / `partition-table.bin` / `ota_data_initial.bin` / `esp32-klipper-screen-app.bin` | `0x2000` / `0x8000` / `0x19000` / `0x20000` | Manual update, keeps settings |
 
           See [docs/INSTALL.md](https://github.com/supercrossed/esp32-klipper-screen/blob/main/docs/INSTALL.md).
+
+          **Desk case:** the `esp32-p4-case-*.3mf` print files and the `.step` assembly are attached below. See the [build guide](https://github.com/supercrossed/esp32-klipper-screen/blob/main/case/README.md).
           EOF
           cat notes.md
 
@@ -94,6 +96,8 @@ jobs:
             dist/*.bin
             dist/SHA256SUMS.txt
             dist/flasher_args.json
+            case/export/*.3mf
+            case/export/*.step
 
   pages:
     if: startsWith(github.ref, 'refs/tags/v')
