@@ -18,6 +18,7 @@
 #include "printers.h"
 #include "updater.h"
 #include "battery.h"
+#include "board.h"
 #include "sound.h"
 #include <math.h>
 #include "esp_timer.h"
@@ -839,6 +840,7 @@ void ui_init(lv_display_t *disp)
 static void build_button_marks(void)
 {
     s_mark_spacer = NULL;
+    if (!BOARD_IS_LCD5) return;                /* positions measured on the 5" only */
     if (g_settings.orientation != 0) return;   /* buttons aren't above the header */
     static const struct { int x; const char *txt; bool icon; } MARKS[] = {
         { 242, ICON_POWER, true }, { 377, "BOOT", false }, { 512, "RST", false },

@@ -5,7 +5,7 @@
 A small wireless touchscreen that controls **all of your Klipper printers** from one place.
 Carry it around the workshop, glance at what every machine is doing, and tap into any printer to control it.
 
-It runs on the [Waveshare ESP32-P4 5″ touch display](https://www.waveshare.com/esp32-p4-wifi6-touch-lcd-5.htm). Nothing needs to be installed on your printers.
+It runs on the Waveshare ESP32-P4 touch displays: [5″](https://www.waveshare.com/esp32-p4-wifi6-touch-lcd-5.htm), and [7″, 8″ and 10.1″](https://www.waveshare.com/esp32-p4-wifi6-touch-lcd-7-8-10.1.htm). Nothing needs to be installed on your printers.
 
 [![Release](https://img.shields.io/github/v/release/supercrossed/esp32-klipper-screen)](https://github.com/supercrossed/esp32-klipper-screen/releases/latest)
 [![Build](https://github.com/supercrossed/esp32-klipper-screen/actions/workflows/build.yml/badge.svg)](https://github.com/supercrossed/esp32-klipper-screen/actions/workflows/build.yml)
@@ -52,9 +52,17 @@ It runs on the [Waveshare ESP32-P4 5″ touch display](https://www.waveshare.com
 
 ## Hardware
 
-ESP32 Klipper Screen runs on the **Waveshare ESP32-P4-WIFI6-Touch-LCD-5**, an all-in-one board with a 5″ touchscreen and built-in Wi-Fi. No soldering or extra parts are needed, just a USB-C cable.
+ESP32 Klipper Screen runs on Waveshare's ESP32-P4 all-in-one boards: a touchscreen with built-in Wi-Fi. No soldering or extra parts are needed, just a USB-C cable. Pick the size you like:
 
-- [Waveshare product page](https://www.waveshare.com/esp32-p4-wifi6-touch-lcd-5.htm)
+| Board | Screen | |
+|---|---|---|
+| **ESP32-P4-WIFI6-Touch-LCD-5** | 5″, 720 × 1280 | [Product page](https://www.waveshare.com/esp32-p4-wifi6-touch-lcd-5.htm). The desk case is made for this one. |
+| **ESP32-P4-WIFI6-Touch-LCD-7** | 7″, 720 × 1280 | [Product page](https://www.waveshare.com/esp32-p4-wifi6-touch-lcd-7-8-10.1.htm) |
+| **ESP32-P4-WIFI6-Touch-LCD-8** | 8″, 800 × 1280 | same page |
+| **ESP32-P4-WIFI6-Touch-LCD-10.1** | 10.1″, 800 × 1280 | same page |
+
+Each size has its own firmware. The installer asks which one you have, and updates keep to the right one.
+
 - [Buy on Amazon](https://www.amazon.com/s?k=esp32+p4+5+inch&crid=1VNTQAY3AYSG2&sprefix=esp32+p4+5+inch%2Caps%2C187&ref=nb_sb_noss_1)
 
 Your printers need **Klipper** with **Moonraker**, which comes with Mainsail, Fluidd and most Klipper setups.

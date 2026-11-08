@@ -1,6 +1,7 @@
 /*
  * Klipper Remote - a small KlipperScreen-style controller for several
- * Klipper/Moonraker printers, on the Waveshare ESP32-P4-WIFI6-Touch-LCD-5.
+ * Klipper/Moonraker printers, on the Waveshare ESP32-P4-WIFI6-Touch-LCD-5/7/8/10.1
+ * (one build per board, see board.h).
  */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -17,6 +18,7 @@
 #include "ui.h"
 #include "updater.h"
 #include "battery.h"
+#include "board.h"
 
 static const char *TAG = "main";
 void serial_console_start(void);
@@ -82,7 +84,7 @@ void app_main(void)
         .touch_flags = { 0 },
     };
     /* The adapter rotates pixels in its flush but passes raw panel touch coordinates
-     * (720x1280) through, so map them into the rotated space here. esp_lcd_touch
+     * (native portrait, e.g. 720x1280) through, so map them into the rotated space here. esp_lcd_touch
      * applies mirror first (panel space), then swap. Derived from the adapter's
      * rotation mapping: ROTATE_90 puts logical (x,y) at panel (W-1-y, x). */
     switch (g_settings.orientation & 3) {
@@ -108,5 +110,5 @@ void app_main(void)
     bsp_display_lock(-1);
     ui_init(disp);
     bsp_display_unlock();
-    ESP_LOGI(TAG, "up: %dx%d", lv_display_get_horizontal_resolution(disp), lv_display_get_vertical_resolution(disp));
+    ESP_LOGI(TAG, "up on %s: %dx%d", BOARD_NAME, lv_display_get_horizontal_resolution(disp), lv_display_get_vertical_resolution(disp));
 }

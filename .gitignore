@@ -21,3 +21,7 @@ case/export/_render/
 case/DESIGN.md
 case/fusion/
 case/export/BUILD_GUIDE.md
+
+# per-board builds (idf.py -B build_lcd7 -DBOARD=lcd7 build)
+build_*/
+sdkconfig.lcd*

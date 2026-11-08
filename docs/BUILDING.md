@@ -18,16 +18,30 @@ It can sit next to an older IDF install. Each shell uses whichever `export` scri
 git clone https://github.com/supercrossed/esp32-klipper-screen.git
 cd esp32-klipper-screen
 idf.py set-target esp32p4        # first time only
-idf.py build
+idf.py build                     # 5" board
 idf.py -p <PORT> flash monitor   # Ctrl+] quits the monitor
 ```
 
-The first build downloads components through the IDF component manager. [`dependencies.lock`](../dependencies.lock) pins their versions.
+### Other screen sizes
+
+`BOARD` picks the board: `lcd5` (default), `lcd7`, `lcd8` or `lcd10`. Give each its own build folder:
+
+```bash
+idf.py -B build_lcd7 -DBOARD=lcd7 build
+idf.py -B build_lcd7 -DBOARD=lcd7 -p <PORT> flash monitor
+```
+
+- The 5″ uses Waveshare's `esp32_p4_wifi6_touch_lcd_5` board package. The 7″, 8″ and 10.1″ share `esp32_p4_wifi6_touch_lcd_x`, which picks the panel (ILI9881C on the 7″, JD9365 on the 8″ and 10.1″) from [`boards/<board>.defaults`](../boards/).
+- Each board keeps its own config: `sdkconfig` for the 5″, `sdkconfig.lcd7` and so on for the others. The 7/8/10.1″ share [`dependencies.lcdx.lock`](../dependencies.lcdx.lock).
+- `managed_components/` is shared, so switching between the 5″ and the others downloads the board package again.
+- [`main/board.h`](../main/board.h) holds what differs per board, and stops the build if the board setting and the board package don't match.
+
+The first build downloads components through the IDF component manager. [`dependencies.lock`](../dependencies.lock) pins their versions (the 7/8/10.1″ use `dependencies.lcdx.lock`).
 
 To produce the single image used for releases:
 
 ```bash
-idf.py merge-bin -o merged.bin   # -> build/merged.bin, flash at 0x0
+idf.py merge-bin -o merged.bin   # -> build/merged.bin, flash at 0x0 (add -B/-DBOARD for other sizes)
 ```
 
 ## Flash layout

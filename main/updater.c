@@ -33,12 +33,13 @@
 #include "cJSON.h"
 #include "nvs.h"
 #include "wifi_mgr.h"
+#include "board.h"
 
 static const char *TAG = "updater";
 
 #define REPO        "supercrossed/esp32-klipper-screen"
 #define API_URL     "https://api.github.com/repos/" REPO "/releases/latest"
-#define APP_ASSET   "esp32-klipper-screen-app.bin"
+#define APP_ASSET   BOARD_APP_ASSET   /* per board, see board.h */
 #define CHECK_EVERY_US  (6LL * 3600 * 1000000)
 #define INSTALL_STACK   8192
 #define INSTALL_MIN_BLOCK (INSTALL_STACK + 12 * 1024)   /* stack + room for TLS / lwIP */

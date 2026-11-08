@@ -14,38 +14,50 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { board: lcd5,  size: 5in,  label: '5"' }
+          - { board: lcd7,  size: 7in,  label: '7"' }
+          - { board: lcd8,  size: 8in,  label: '8"' }
+          - { board: lcd10, size: 10in, label: '10.1"' }
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Build firmware (ESP-IDF v5.5.6, esp32p4)
+      - name: Build firmware for ${{ matrix.label }} (ESP-IDF v5.5.6, esp32p4)
         uses: espressif/esp-idf-ci-action@v1
         with:
           esp_idf_version: v5.5.6
           target: esp32p4
-          command: idf.py build && idf.py merge-bin -o merged.bin
+          command: idf.py -DBOARD=${{ matrix.board }} build && idf.py -DBOARD=${{ matrix.board }} merge-bin -o merged.bin
 
       - name: Collect binaries
         run: |
           VER="$(git describe --tags --always)"
+          S="${{ matrix.size }}"
           echo "VER=$VER" >> "$GITHUB_ENV"
+          # The app name the firmware's updater looks for (main/Kconfig.projbuild).
+          APP="$(sed -n 's/^#define CONFIG_KR_APP_ASSET "\(.*\)"$/\1/p' build/config/sdkconfig.h)"
+          test -n "$APP"
           mkdir -p dist
-          cp build/bootloader/bootloader.bin           dist/bootloader.bin
+          cp build/bootloader/bootloader.bin           "dist/bootloader-$S.bin"
           cp build/partition_table/partition-table.bin dist/partition-table.bin
           cp build/ota_data_initial.bin                dist/ota_data_initial.bin
-          cp build/klipper_remote.bin                  dist/esp32-klipper-screen-app.bin
-          cp build/merged.bin                          "dist/esp32-klipper-screen-${VER}.bin"
-          cp build/flasher_args.json                   dist/flasher_args.json
-          (cd dist && sha256sum *.bin > SHA256SUMS.txt)
+          cp build/klipper_remote.bin                  "dist/$APP"
+          cp build/merged.bin                          "dist/esp32-klipper-screen-$S-${VER}.bin"
+          cp build/flasher_args.json                   "dist/flasher_args-$S.json"
+          echo "$APP" > "dist/app-$S.txt"
           ls -l dist
           SIZE=$(stat -c %s build/klipper_remote.bin)
-          echo "### Firmware ${VER}" >> "$GITHUB_STEP_SUMMARY"
-          echo "App image: ${SIZE} bytes (partition 8 MiB)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Firmware ${VER}, ${{ matrix.label }} (${{ matrix.board }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "App image \`$APP\`: ${SIZE} bytes (partition 6 MiB)" >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v7
         with:
-          name: firmware-${{ env.VER }}
+          name: firmware-${{ matrix.size }}-${{ env.VER }}
           path: dist/
           if-no-files-found: error
 
@@ -63,6 +75,9 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - name: Checksums
+        run: (cd dist && sha256sum *.bin > SHA256SUMS.txt && cat SHA256SUMS.txt)
+
       - name: Release notes from CHANGELOG
         run: |
           V="${GITHUB_REF_NAME#v}"
@@ -76,12 +91,15 @@ jobs:
 
           ---
           **Updating:** displays on v0.2.0 or later update themselves (Settings → Updates, or the green *Update* button).
-          **Installing:** use the [web installer](https://supercrossed.github.io/esp32-klipper-screen/) (Chrome/Edge), or flash with esptool:
+          **Installing:** use the [web installer](https://supercrossed.github.io/esp32-klipper-screen/) (Chrome/Edge) and pick your screen size, or flash with esptool.
+          There is one firmware per board: Waveshare ESP32-P4-WIFI6-Touch-LCD-**5**, **7**, **8** or **10.1** (`5in`, `7in`, `8in`, `10in` in the file names). Flashing the wrong one leaves the screen dark; flash the right one to fix it.
 
           | File | Flash at | Use |
           |---|---|---|
-          | `esp32-klipper-screen-<version>.bin` | `0x0` | Fresh install (wipes settings) |
-          | `bootloader.bin` / `partition-table.bin` / `ota_data_initial.bin` / `esp32-klipper-screen-app.bin` | `0x2000` / `0x8000` / `0x19000` / `0x20000` | Manual update, keeps settings |
+          | `esp32-klipper-screen-<size>-<version>.bin` | `0x0` | Fresh install (wipes settings) |
+          | `bootloader-<size>.bin` / `partition-table.bin` / `ota_data_initial.bin` / app | `0x2000` / `0x8000` / `0x19000` / `0x20000` | Manual update, keeps settings |
+
+          App files: `esp32-klipper-screen-app.bin` (5"), `esp32-klipper-screen-7in-app.bin`, `esp32-klipper-screen-8in-app.bin`, `esp32-klipper-screen-10in-app.bin`.
 
           See [docs/INSTALL.md](https://github.com/supercrossed/esp32-klipper-screen/blob/main/docs/INSTALL.md).
 
@@ -95,7 +113,7 @@ jobs:
           files: |
             dist/*.bin
             dist/SHA256SUMS.txt
-            dist/flasher_args.json
+            dist/flasher_args-*.json
             case/export/*.3mf
             case/export/*.step
 
@@ -119,28 +137,37 @@ jobs:
 
       - name: Assemble web installer
         run: |
-          mkdir -p site/firmware
+          V="${GITHUB_REF_NAME#v}"
+          mkdir -p site
           cp web/index.html site/
-          cp dist/bootloader.bin dist/partition-table.bin dist/ota_data_initial.bin dist/esp32-klipper-screen-app.bin site/firmware/
-          cat > site/manifest.json <<EOF
+          for S in 5in 7in 8in 10in; do
+            APP="$(cat "dist/app-$S.txt")"
+            mkdir -p "site/firmware/$S"
+            cp "dist/bootloader-$S.bin" "site/firmware/$S/bootloader.bin"
+            cp dist/partition-table.bin dist/ota_data_initial.bin "site/firmware/$S/"
+            cp "dist/$APP" "site/firmware/$S/app.bin"
+            cat > "site/manifest-$S.json" <<EOF
           {
-            "name": "ESP32 Klipper Screen",
-            "version": "${GITHUB_REF_NAME#v}",
+            "name": "ESP32 Klipper Screen ($S)",
+            "version": "$V",
             "new_install_prompt_erase": true,
             "builds": [
               {
                 "chipFamily": "ESP32-P4",
                 "parts": [
-                  { "path": "firmware/bootloader.bin", "offset": 8192 },
-                  { "path": "firmware/partition-table.bin", "offset": 32768 },
-                  { "path": "firmware/ota_data_initial.bin", "offset": 102400 },
-                  { "path": "firmware/esp32-klipper-screen-app.bin", "offset": 131072 }
+                  { "path": "firmware/$S/bootloader.bin", "offset": 8192 },
+                  { "path": "firmware/$S/partition-table.bin", "offset": 32768 },
+                  { "path": "firmware/$S/ota_data_initial.bin", "offset": 102400 },
+                  { "path": "firmware/$S/app.bin", "offset": 131072 }
                 ]
               }
             ]
           }
           EOF
-          cat site/manifest.json
+          done
+          # Older links point at manifest.json: keep it as the 5".
+          cp site/manifest-5in.json site/manifest.json
+          ls -R site; cat site/manifest-*.json
 
       - uses: actions/upload-pages-artifact@v5
         with:

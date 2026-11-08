@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ESP32 Klipper Screen Installer</title>
-  <meta name="description" content="Flash ESP32 Klipper Screen to a Waveshare ESP32-P4-WIFI6-Touch-LCD-5 from your browser.">
+  <meta name="description" content="Flash ESP32 Klipper Screen to a Waveshare ESP32-P4-WIFI6-Touch-LCD-5, 7, 8 or 10.1 from your browser.">
   <script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
   <style>
     :root {
@@ -32,18 +32,36 @@
     a { color: var(--accent); }
     code { font-family: ui-monospace, Consolas, monospace; font-size: .9em; }
     footer { color: var(--muted); font-size: .85rem; margin-top: 32px; }
+    .sizes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 0 0 18px; }
+    .size { display: block; position: relative; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; cursor: pointer; }
+    .size input { position: absolute; opacity: 0; pointer-events: none; }
+    .size strong { display: block; font-size: 1.15rem; }
+    .size span { color: var(--muted); font-size: .85rem; }
+    .size:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+    .size:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .pick { color: var(--muted); }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
 <main>
   <h1>ESP32 Klipper Screen</h1>
-  <p class="lead">A portable touchscreen for several Klipper printers, running on a
-    <a href="https://www.waveshare.com/esp32-p4-wifi6-touch-lcd-5.htm">Waveshare ESP32-P4-WIFI6-Touch-LCD-5</a>.</p>
+  <p class="lead">A portable touchscreen for several Klipper printers, running on a Waveshare
+    <a href="https://www.waveshare.com/esp32-p4-wifi6-touch-lcd-5.htm">ESP32-P4-WIFI6-Touch-LCD-5</a> or
+    <a href="https://www.waveshare.com/esp32-p4-wifi6-touch-lcd-7-8-10.1.htm">-7, -8 or -10.1</a>.</p>
 
   <div class="card">
     <h2>Install</h2>
-    <div class="install">
-      <esp-web-install-button manifest="manifest.json">
+    <p>Which screen do you have?</p>
+    <div class="sizes" role="radiogroup" aria-label="Screen size">
+      <label class="size"><input type="radio" name="size" value="5in"><strong>5"</strong><span>720 &times; 1280, ESP32-P4-WIFI6-Touch-LCD-5</span></label>
+      <label class="size"><input type="radio" name="size" value="7in"><strong>7"</strong><span>720 &times; 1280, ESP32-P4-WIFI6-Touch-LCD-7</span></label>
+      <label class="size"><input type="radio" name="size" value="8in"><strong>8"</strong><span>800 &times; 1280, ESP32-P4-WIFI6-Touch-LCD-8</span></label>
+      <label class="size"><input type="radio" name="size" value="10in"><strong>10.1"</strong><span>800 &times; 1280, ESP32-P4-WIFI6-Touch-LCD-10.1</span></label>
+    </div>
+    <p class="pick" id="pick">Pick a size to show the Install button.</p>
+    <div class="install" id="install" hidden>
+      <esp-web-install-button id="btn" manifest="manifest-5in.json">
         <span slot="unsupported">Your browser can't flash devices. Use Chrome or Edge on a desktop.</span>
         <span slot="not-allowed">Open this page over HTTPS to install.</span>
       </esp-web-install-button>
@@ -55,6 +73,7 @@
     <h2>Steps</h2>
     <ol>
       <li>Connect the board's <strong>USB-UART</strong> port to this computer with a data cable.</li>
+      <li>Pick your screen size above. Each size has its own firmware; the wrong one leaves the screen dark (install the right one to fix it).</li>
       <li>Click <strong>Install</strong> and pick the board's serial port.</li>
       <li>On a first install, tick <em>Erase device</em>. When updating, leave it unticked to keep your Wi-Fi and printers.</li>
       <li>When it finishes, press reset on the board. On a first boot it opens on Wi-Fi setup.</li>
@@ -70,9 +89,23 @@
   </footer>
 </main>
 <script>
-  fetch("manifest.json").then(r => r.json()).then(m => {
-    document.getElementById("ver").textContent = "Version " + m.version;
-  }).catch(() => {});
+  const btn = document.getElementById("btn");
+  const names = { "5in": '5"', "7in": '7"', "8in": '8"', "10in": '10.1"' };
+  function choose(size) {
+    btn.setAttribute("manifest", "manifest-" + size + ".json");
+    document.getElementById("install").hidden = false;
+    document.getElementById("pick").hidden = true;
+    document.getElementById("ver").textContent = "";
+    fetch("manifest-" + size + ".json").then(r => r.json()).then(m => {
+      document.getElementById("ver").textContent = "Version " + m.version + " for the " + names[size] + " screen";
+    }).catch(() => {});
+    try { localStorage.setItem("size", size); } catch (e) {}
+  }
+  document.querySelectorAll('input[name="size"]').forEach(r => r.addEventListener("change", () => choose(r.value)));
+  let saved = null;
+  try { saved = localStorage.getItem("size"); } catch (e) {}
+  const pre = saved && document.querySelector('input[name="size"][value="' + saved + '"]');
+  if (pre) { pre.checked = true; choose(saved); }
 </script>
 </body>
 </html>

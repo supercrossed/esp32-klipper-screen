@@ -1,7 +1,15 @@
 dependencies:
   idf: ">=5.5"
-  # Board support: HX8394 MIPI-DSI panel, GT911 touch, backlight, LVGL adapter.
-  waveshare/esp32_p4_wifi6_touch_lcd_5: "^1.0.4"
+  # Board support: MIPI-DSI panel, GT911 touch, backlight, LVGL adapter.
+  # KR_BSP is set by the top-level CMakeLists.txt from BOARD (see boards/).
+  waveshare/esp32_p4_wifi6_touch_lcd_5:      # 5": HX8394
+    version: "^1.0.4"
+    rules:
+      - if: "$KR_BSP == lcd5"
+  waveshare/esp32_p4_wifi6_touch_lcd_x:      # 7": ILI9881C, 8" and 10.1": JD9365
+    version: "^2.0.3"
+    rules:
+      - if: "$KR_BSP == lcdx"
   lvgl/lvgl:
     version: "9.5.0"
     public: true

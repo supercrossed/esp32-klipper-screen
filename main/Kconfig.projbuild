@@ -1,0 +1,35 @@
+menu "Klipper Remote"
+
+    choice KR_BOARD
+        prompt "Board"
+        default KR_BOARD_LCD5
+        help
+            Set by BOARD in the top-level CMakeLists.txt through boards/<board>.defaults.
+            It must match the board support package that BOARD selects.
+        config KR_BOARD_LCD5
+            bool "Waveshare ESP32-P4-WIFI6-Touch-LCD-5"
+        config KR_BOARD_LCD7
+            bool "Waveshare ESP32-P4-WIFI6-Touch-LCD-7"
+        config KR_BOARD_LCD8
+            bool "Waveshare ESP32-P4-WIFI6-Touch-LCD-8"
+        config KR_BOARD_LCD10
+            bool "Waveshare ESP32-P4-WIFI6-Touch-LCD-10.1"
+    endchoice
+
+    config KR_BOARD_NAME
+        string
+        default "ESP32-P4-WIFI6-Touch-LCD-5" if KR_BOARD_LCD5
+        default "ESP32-P4-WIFI6-Touch-LCD-7" if KR_BOARD_LCD7
+        default "ESP32-P4-WIFI6-Touch-LCD-8" if KR_BOARD_LCD8
+        default "ESP32-P4-WIFI6-Touch-LCD-10.1" if KR_BOARD_LCD10
+
+    # Release asset the updater installs. The 5" keeps the original name so
+    # displays already in use keep finding their updates.
+    config KR_APP_ASSET
+        string
+        default "esp32-klipper-screen-app.bin" if KR_BOARD_LCD5
+        default "esp32-klipper-screen-7in-app.bin" if KR_BOARD_LCD7
+        default "esp32-klipper-screen-8in-app.bin" if KR_BOARD_LCD8
+        default "esp32-klipper-screen-10in-app.bin" if KR_BOARD_LCD10
+
+endmenu

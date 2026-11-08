@@ -1,12 +1,13 @@
 /*
  * Battery monitor for the board's BAT connector (1S Li-ion / LiPo).
  *
- * Hardware (ESP32-P4-WIFI6-Touch-LCD-5 schematic): the cell charges through an
- * ETA6098 switching charger, fixed 4.2 V, with no control line to the ESP32,
- * so the charge limit cannot be changed in software. The cell voltage reaches
- * GPIO20 (ADC1 channel 4) through a 200K / 100K divider (1/3).
- * The board has no battery protection chip, so the firmware can turn itself
- * off below a set voltage (see battery_boot_check()).
+ * Hardware (Waveshare schematics): the cell charges through a switching
+ * charger (5": ETA6098, 7/8/10.1": ETA6003), fixed 4.2 V, with no control line
+ * to the ESP32, so the charge limit cannot be changed in software. The cell
+ * voltage reaches GPIO20 (ADC1 channel 4) through a 200K / 100K divider (1/3)
+ * on all of them. The 5" has no battery protection chip (the others have an
+ * S-8261), so the firmware can turn itself off below a set voltage (see
+ * battery_boot_check()).
  */
 #pragma once
 #include <stdbool.h>

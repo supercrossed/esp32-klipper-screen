@@ -74,8 +74,8 @@ The interval comes from Settings (1 s focused, 3 s background). A command or foc
 
 ## Updates
 
-`updater.c` checks `api.github.com/repos/<repo>/releases/latest` a minute after boot and every 6 hours, on a short-lived task. It compares the tag with the running `PROJECT_VER`, turns the release body (above the `---` divider) into plain text, and records the URL of the `esp32-klipper-screen-app.bin` asset. Installing runs `esp_https_ota` into the inactive slot on an internal-stack task, because it writes flash. On its first boot the new image marks itself valid after a minute; if it crashes before that, the bootloader rolls back.
+`updater.c` checks `api.github.com/repos/<repo>/releases/latest` a minute after boot and every 6 hours, on a short-lived task. It compares the tag with the running `PROJECT_VER`, turns the release body (above the `---` divider) into plain text, and records the URL of this board's app asset (`CONFIG_KR_APP_ASSET`: `esp32-klipper-screen-app.bin` on the 5″, which keeps its original name, and `esp32-klipper-screen-<size>-app.bin` for the others), so a screen only ever installs its own firmware. Installing runs `esp_https_ota` into the inactive slot on an internal-stack task, because it writes flash. On its first boot the new image marks itself valid after a minute; if it crashes before that, the bootloader rolls back.
 
 ## Display & touch
 
-The BSP drives the HX8394 panel through `esp_lvgl_adapter` in `TRIPLE_PARTIAL` mode. Rotation is done in the adapter's flush (on the PPA). The adapter doesn't rotate touch input, so `main.c` sets the GT911's swap/mirror flags to match each orientation.
+The BSP drives the panel (HX8394 on the 5″, ILI9881C on the 7″, JD9365 on the 8″ and 10.1″) through `esp_lvgl_adapter` in `TRIPLE_PARTIAL` mode. Rotation is done in the adapter's flush (on the PPA). The adapter doesn't rotate touch input, so `main.c` sets the GT911's swap/mirror flags to match each orientation.

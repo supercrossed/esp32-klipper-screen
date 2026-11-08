@@ -29,6 +29,7 @@
 #include "driver/gpio.h"
 #include "soc/soc_caps.h"
 #include "app_settings.h"
+#include "board.h"
 
 static const char *TAG = "battery";
 
@@ -87,12 +88,14 @@ static int soc_from_mv(int mv)
     return 0;
 }
 
-/* Rough charge current into the cell (mA). The ETA6098 charges at around
- * half an amp on this board; measured as ~40 mV above rest on an 18650. */
+/* Rough charge current into the cell (mA). The 5"'s ETA6098 charges at around
+ * half an amp; measured as ~40 mV above rest on an 18650. The 7/8/10.1" use an
+ * ETA6003; assumed similar until measured. */
 #define CHARGE_MA 500
 
-/* Rough board draw from the battery (mA): display backlight dominates. */
-static int load_ma(void) { return 220 + 3 * g_settings.brightness; }
+/* Rough board draw from the battery (mA): display backlight dominates, and
+ * scales with the panel (board.h). */
+static int load_ma(void) { return 220 + 3 * g_settings.brightness * BOARD_BL_LOAD_X10 / 10; }
 /* Cell + connector resistance (mOhm), smaller cells are worse. */
 static int cell_mohm(void)
 {

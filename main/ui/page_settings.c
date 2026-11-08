@@ -11,6 +11,7 @@
 #include "esp_app_desc.h"
 #include "esp_chip_info.h"
 #include "esp_heap_caps.h"
+#include "board.h"
 #include "esp_timer.h"
 #include "esp_idf_version.h"
 #include "app_settings.h"
@@ -492,10 +493,15 @@ static void build_device(lv_obj_t *c)
         "The charge level is worked out from the battery voltage, so it's an estimate, especially while charging. "
         "The type picks the matching voltage curve; the size is used for the time-left estimate. "
         "The board charges the battery fully (4.2 V) and that cannot be changed in software. "
+#if BOARD_HAS_BAT_PROTECT
+        "The board has its own battery protection; \"Turn off when empty\" still turns the screen off "
+        "before that cuts in. After turning off, plug in USB and the screen starts again.");
+#else
         "A protected cell is preferred but not required; keep \"Turn off when empty\" on so the cell never "
         "runs flat. After turning off, plug in USB and the screen starts again. "
         "Unplugging USB restarts the screen for a moment; that's how the board switches power. "
         "On battery, hold the POWER button to turn the screen off or on.");
+#endif
     lv_label_set_long_mode(note, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(note, LV_PCT(100));
 
@@ -559,9 +565,9 @@ static void refresh(void)
         esp_chip_info(&ci);
         int64_t up = esp_timer_get_time() / 1000000;
         snprintf(t, sizeof(t),
-                 "Firmware %s  (ESP-IDF %s)\nESP32-P4 rev %d.%d, %d cores  -  Wi-Fi via ESP32-C6\n"
+                 "Firmware %s  (ESP-IDF %s)\nWaveshare %s\nESP32-P4 rev %d.%d, %d cores  -  Wi-Fi via ESP32-C6\n"
                  "Free RAM %u KB internal, %u KB PSRAM\nUptime %lldd %02lld:%02lld:%02lld\nIcons: Material Design Icons (Apache-2.0)",
-                 app->version, esp_get_idf_version(), ci.revision / 100, ci.revision % 100, ci.cores,
+                 app->version, esp_get_idf_version(), BOARD_NAME, ci.revision / 100, ci.revision % 100, ci.cores,
                  (unsigned)(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
                  (unsigned)(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                  up / 86400, (up / 3600) % 24, (up / 60) % 60, up % 60);
