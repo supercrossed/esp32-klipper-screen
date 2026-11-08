@@ -211,6 +211,8 @@ static const ui_page_t *s_cur;
 
 static lv_display_t *s_disp;
 static lv_obj_t *s_bat, *s_bat_fill, *s_bat_lbl;
+static lv_obj_t *s_mark_spacer;   /* keeps the page title clear of the button marks */
+#define MARK_SPACER_W (560 - 110 - 12)
 static lv_obj_t *s_header, *s_content, *s_back_btn, *s_title, *s_wifi_lbl, *s_clock_lbl, *s_upd_btn;
 static lv_obj_t *s_kb, *s_kb_ta;
 
@@ -586,6 +588,8 @@ static void show_top(void)
     lv_label_set_text(s_title, s_cur->title);
     if (s_depth > 1) lv_obj_remove_flag(s_back_btn, LV_OBJ_FLAG_HIDDEN);
     else lv_obj_add_flag(s_back_btn, LV_OBJ_FLAG_HIDDEN);
+    /* without the back button (88 px + 12 px gap) the spacer takes its place */
+    if (s_mark_spacer) lv_obj_set_width(s_mark_spacer, MARK_SPACER_W + (s_depth > 1 ? 0 : 100));
     s_cur->create(s_content, s_stack[s_depth - 1].arg);
     ESP_LOGI(TAG, "page %d (depth %d), free internal %u, psram %u", id, s_depth,
              (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
@@ -817,6 +821,37 @@ void ui_init(lv_display_t *disp)
     if (!g_settings.wifi_ssid[0]) ui_nav_push(PAGE_WIFI, 1);
 }
 
+/* Small labels at the top edge of the header, under the board's POWER, BOOT
+ * and RESET buttons (they sit on the top edge in the normal landscape
+ * orientation). From Waveshare's drawing: seen from the front the buttons are
+ * 22.37 / 34.05 / 45.73 mm from the PCB's left edge, the glass overhangs the
+ * PCB by ~5.7 mm and the 110.7 mm active area starts ~7.2 mm into the glass,
+ * at 0.0865 mm per pixel. */
+static void build_button_marks(void)
+{
+    s_mark_spacer = NULL;
+    if (g_settings.orientation != 0) return;   /* buttons aren't above the header */
+    static const struct { int x; const char *txt; bool icon; } MARKS[] = {
+        { 242, ICON_POWER, true }, { 377, "BOOT", false }, { 512, "RST", false },
+    };
+    for (int i = 0; i < 3; i++) {
+        lv_obj_t *l = lv_label_create(s_header);
+        lv_label_set_text(l, MARKS[i].txt);
+        lv_obj_set_style_text_font(l, MARKS[i].icon ? ui_font_icon(36) : ui_font_bold(24), 0);
+        lv_obj_set_style_text_color(l, COL_MUTED, 0);
+        lv_obj_add_flag(l, LV_OBJ_FLAG_FLOATING);
+        lv_obj_remove_flag(l, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_align(l, LV_ALIGN_CENTER, MARKS[i].x - ui_width() / 2, 0);
+    }
+    /* A fixed spacer after the back button so the page title starts after the
+     * RST mark (back button + gaps end at x = 110; the title then at ~560). */
+    lv_obj_t *sp = s_mark_spacer = lv_obj_create(s_header);
+    lv_obj_remove_style_all(sp);
+    lv_obj_set_size(sp, MARK_SPACER_W, 1);
+    lv_obj_remove_flag(sp, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_move_to_index(sp, lv_obj_get_index(s_title));
+}
+
 /* Header + content area. Rebuilt from scratch on a theme change. */
 static void build_shell(void)
 {
@@ -853,6 +888,7 @@ static void build_shell(void)
     s_wifi_lbl = ui_label(s_header, FONT_L, COL_MUTED, "");
     s_clock_lbl = ui_label(s_header, FONT_L, COL_TEXT, "--:--");
     hdr_btn(ICON_SETTINGS, settings_cb);
+    build_button_marks();
 
     s_content = lv_obj_create(scr);
     lv_obj_set_width(s_content, LV_PCT(100));

@@ -7,6 +7,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project u
 ### Changed
 - **Smoother, faster screens.** Text now draws about 2.5 times faster, so lists scroll much more smoothly, and the screen keeps more memory free for Wi-Fi. The font looks the same.
 - **History and Files show the 5 most recent** jobs and files. Files says how many there are in total.
+- **Button labels in the top bar.** ⏻, BOOT and RST sit right under the board's POWER, BOOT and RESET buttons (landscape), so you know which is which in the case.
+- Settings → Time no longer shows the note about time servers.
 
 ### Fixed
 - The History tab no longer rebuilds itself every 15 seconds, which made scrolling stall for seconds at a time.

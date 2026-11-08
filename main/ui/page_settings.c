@@ -392,10 +392,6 @@ static void build_time(lv_obj_t *c)
     }
     int ti = tz_index(g_settings.tz);
     dropdown(r, opts, g_settings.tz_auto || ti < 0 ? 0 : ti + 1, tz_cb);
-    lv_obj_t *n = ui_label(g, FONT_S, COL_MUTED,
-                           "Time comes from NTP (pool.ntp.org, time.google.com). Auto looks up the zone from your public IP once.");
-    lv_label_set_long_mode(n, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(n, LV_PCT(100));
 }
 
 static void check_cb(lv_event_t *e) { updater_check_now(); }
@@ -555,7 +551,7 @@ static void refresh(void)
             struct tm tm;
             localtime_r(&now, &tm);
             strftime(t, sizeof(t), "%H:%M:%S   %a %d %b %Y", &tm);
-        } else strcpy(t, "Waiting for NTP time sync...");
+        } else strcpy(t, "Waiting for the time...");
         ui_set_text(s_time_lbl, t);
     } else if (s_sec == SEC_DEVICE && s_info) {
         const esp_app_desc_t *app = esp_app_get_description();
