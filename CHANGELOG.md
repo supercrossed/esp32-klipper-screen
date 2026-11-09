@@ -2,7 +2,7 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
-## [0.4.12] - 2026-11-08
+## [0.4.12] - 2026-11-09
 
 ### Added
 - **7″, 8″ and 10.1″ screens.** The firmware now also runs on Waveshare's ESP32-P4-WIFI6-Touch-LCD-7 (720 × 1280), -8 and -10.1 (800 × 1280). Each size has its own firmware in every release. The [web installer](https://supercrossed.github.io/esp32-klipper-screen/) asks which screen you have, and the screen's own updater only ever installs the firmware for its size.
