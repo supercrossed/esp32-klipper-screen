@@ -9,6 +9,9 @@
 
 static lv_obj_t *s_banner;
 static int s_printer = -1;
+static uint32_t s_hide_at;          /* lv_tick time to auto-dismiss; 0 = stays until tapped */
+
+#define AUTO_HIDE_MS 10000          /* finished/cancelled banners; failures stay up */
 
 static void dismiss(void)
 {
@@ -90,13 +93,21 @@ static void show(const job_alert_t *a)
     if (a->printer >= 0) ui_button(bc, ICON_PRINTER, "Open", COL_ACCENT, open_cb, NULL);
     ui_button(bc, ICON_CLOSE, "Dismiss", COL_CARD2, dismiss_cb, NULL);
 
+    s_hide_at = 0;
+    if (a->status == PS_COMPLETE || a->status == PS_CANCELLED) {
+        s_hide_at = lv_tick_get() + AUTO_HIDE_MS;
+        if (!s_hide_at) s_hide_at = 1;          /* 0 means "stay" */
+    }
     sound_play(a->status == PS_COMPLETE ? SOUND_DONE : a->status == PS_CANCELLED ? SOUND_TEST : SOUND_ERROR);
 }
 
 /* Called from the UI tick. */
 void ui_alert_tick(void)
 {
-    if (s_banner) return;   /* one at a time; the rest wait in the queue */
+    if (s_banner) {         /* one at a time; the rest wait in the queue */
+        if (s_hide_at && (int32_t)(lv_tick_get() - s_hide_at) >= 0) dismiss();
+        return;
+    }
     job_alert_t a;
     if (!printers_pop_alert(&a)) return;
     if (!g_settings.alerts) return;

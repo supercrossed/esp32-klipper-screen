@@ -108,7 +108,7 @@ The board has a **BAT** connector (MX1.25 on the 5″, JST 1.25 mm 2-pin on the 
 
 ## Print alerts
 
-When any printer finishes, fails, is cancelled or stops unexpectedly, a banner slides in at the top with an **Open** button that jumps to that printer, plus a chime: rising for finished, low for a problem. It stays until you dismiss it. Several alerts queue up and show one after another. Turn banners or sound off in *Settings → Device → Alerts & sound*.
+When any printer finishes, fails, is cancelled or stops unexpectedly, a banner slides in at the top with an **Open** button that jumps to that printer, plus a chime: rising for finished, low for a problem. Finished and cancelled banners go away by themselves after 10 seconds; failures and stops stay until you dismiss them. Several alerts queue up and show one after another. Turn banners or sound off in *Settings → Device → Alerts & sound*.
 
 ## Updates
 
