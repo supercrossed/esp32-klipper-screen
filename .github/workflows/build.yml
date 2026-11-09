@@ -35,6 +35,8 @@ jobs:
           command: idf.py -DBOARD=${{ matrix.board }} build && idf.py -DBOARD=${{ matrix.board }} merge-bin -o merged.bin
 
       - name: Collect binaries
+        env:
+          LABEL: ${{ matrix.label }}
         run: |
           VER="$(git describe --tags --always)"
           S="${{ matrix.size }}"
@@ -52,7 +54,7 @@ jobs:
           echo "$APP" > "dist/app-$S.txt"
           ls -l dist
           SIZE=$(stat -c %s build/klipper_remote.bin)
-          echo "### Firmware ${VER}, ${{ matrix.label }} (${{ matrix.board }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Firmware ${VER}, ${LABEL} (${{ matrix.board }})" >> "$GITHUB_STEP_SUMMARY"
           echo "App image \`$APP\`: ${SIZE} bytes (partition 6 MiB)" >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v7
