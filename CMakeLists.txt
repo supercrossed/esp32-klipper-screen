@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-set(PROJECT_VER "0.4.12")
+set(PROJECT_VER "0.4.13")
 
 # Which Waveshare ESP32-P4-WIFI6-Touch-LCD board to build for:
 #   lcd5 (default), lcd7, lcd8, lcd10   ->   idf.py -B build_lcd7 -DBOARD=lcd7 build

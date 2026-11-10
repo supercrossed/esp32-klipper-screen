@@ -2,7 +2,7 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
-## [0.4.12] - 2026-11-09
+## [0.4.13] - 2026-11-09
 
 ### Added
 - **7″, 8″ and 10.1″ screens.** The firmware now also runs on Waveshare's ESP32-P4-WIFI6-Touch-LCD-7 (720 × 1280), -8 and -10.1 (800 × 1280). Each size has its own firmware in every release. The [web installer](https://supercrossed.github.io/esp32-klipper-screen/) asks which screen you have, and the screen's own updater only ever installs the firmware for its size.
@@ -12,7 +12,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project u
 ### Changed
 - **The home page opens faster:** about 130 ms instead of 170 ms when a printer has a job thumbnail. Each thumbnail is now decoded and shrunk once, and kept until the printer's job changes, instead of being decoded again every time.
 - The **Print finished** and **Print cancelled** banners go away by themselves after 10 seconds. Failures and stops still stay until you dismiss them.
-- Release file names now include the screen size (`5in`, `7in`, `8in`, `10in`), for example `esp32-klipper-screen-5in-v0.4.12.bin` and `bootloader-5in.bin`. The 5″ app file keeps its old name, so 5″ screens update as before.
+- Release file names now include the screen size (`5in`, `7in`, `8in`, `10in`), for example `esp32-klipper-screen-5in-v0.4.13.bin` and `bootloader-5in.bin`. The 5″ app file keeps its old name, so 5″ screens update as before.
 
 ### Fixed
 - **Time left now matches Mainsail.** Progress counts only the G-code itself, not the slicer's thumbnails and settings stored in the same file, so it no longer lags behind. Time left is now the average of the file-progress and filament-used estimates, like Mainsail's default. Before, it could show about twice as long as Mainsail near the end of a print.
@@ -179,7 +179,7 @@ First public release.
 - USB serial console for headless setup and debugging.
 - Web installer (GitHub Pages) and CI release builds.
 
-[0.4.12]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.12
+[0.4.13]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.13
 [0.4.11]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.11
 [0.4.10]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.10
 [0.4.9]: https://github.com/supercrossed/esp32-klipper-screen/releases/tag/v0.4.9
