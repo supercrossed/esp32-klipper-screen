@@ -134,6 +134,9 @@ static void handle(char *line)
         printf("updater: state=%d current=%s latest=%s size=%u progress=%d err=%s\n", u.state, u.current, u.latest,
                (unsigned)u.size, u.progress, u.error);
         printf("notes: %.300s\n", u.notes);
+    } else if (!strcmp(argv[0], "fbcheck")) {
+        extern void screenshot_fbcheck(void);
+        screenshot_fbcheck();
     } else if (!strcmp(argv[0], "bench")) {
         extern void screenshot_bench(void);
         screenshot_bench();

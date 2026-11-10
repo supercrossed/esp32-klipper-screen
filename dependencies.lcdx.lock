@@ -10,7 +10,7 @@ dependencies:
       require: private
       version: '>=4.0'
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 4.2.3
   espressif/cmake_utilities:
@@ -80,7 +80,7 @@ dependencies:
       require: private
       version: '>=4.4.2'
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 1.2.1
   espressif/esp_lcd_touch_gt911:
@@ -120,7 +120,7 @@ dependencies:
       require: private
       version: '>=8.3,<10'
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     targets:
     - esp32
@@ -154,46 +154,36 @@ dependencies:
       require: private
       version: '>=8,<10'
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 1.0.1
   espressif/esp_lvgl_adapter:
-    component_hash: bcb316bedda9e934d32567082a969a8e8f8f406dd32d23c359a299249dc18e81
     dependencies:
     - name: espressif/button
-      registry_url: https://components.espressif.com
-      require: public
+      public: true
       version: 4.*
     - name: espressif/esp_lcd_touch
-      registry_url: https://components.espressif.com
-      require: public
+      public: true
       version: 1.*
     - name: espressif/esp_lv_decoder
-      registry_url: https://components.espressif.com
-      require: public
+      public: true
       version: 0.*
     - name: espressif/esp_lv_fs
-      registry_url: https://components.espressif.com
-      require: public
+      public: true
       version: 1.*
     - name: espressif/freetype
-      registry_url: https://components.espressif.com
-      require: public
+      public: true
       version: 2.*
     - name: espressif/knob
-      registry_url: https://components.espressif.com
-      require: public
+      public: true
       version: 1.*
     - name: idf
-      require: private
       version: '>=5.5'
     - name: lvgl/lvgl
-      registry_url: https://components.espressif.com
-      require: private
       version: '>=8,<10'
     source:
-      registry_url: https://components.espressif.com
-      type: service
+      path: C:\Users\super\Documents\ESP32 projects\ESP32 Klipper\third_party\esp_lvgl_adapter
+      type: local
     version: 0.6.4
   espressif/esp_mmap_assets:
     component_hash: 42310c362596de2a37248c2937b1754bc29cd0356b9839e2a77cf791e6bcdde1
@@ -265,7 +255,7 @@ dependencies:
       require: private
       version: '>=5.1'
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 2.14.3~1
   espressif/i2c_bus:
@@ -293,7 +283,7 @@ dependencies:
       require: private
       version: '>=4.4.1'
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 1.1.0
   espressif/libpng:
@@ -415,11 +405,12 @@ dependencies:
     version: 2.0.0
 direct_dependencies:
 - espressif/esp_hosted
+- espressif/esp_lvgl_adapter
 - espressif/esp_wifi_remote
 - espressif/mdns
 - idf
 - lvgl/lvgl
 - waveshare/esp32_p4_wifi6_touch_lcd_x
-manifest_hash: ead99ab8f841f49a79c974881af2b1e3594db416b17ae3a052d84f45bdebbb2c
+manifest_hash: 172bd23f1925acfc9249b32ad64b382245f92b31cbf8c5c47e571e5e4070f386
 target: esp32p4
 version: 2.0.0

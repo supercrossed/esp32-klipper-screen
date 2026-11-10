@@ -13,6 +13,11 @@ dependencies:
   lvgl/lvgl:
     version: "9.5.0"
     public: true
+  # Espressif's LVGL adapter 0.6.4 (pulled in by the BSP), project copy with the
+  # async partial-rotate change: see third_party/esp_lvgl_adapter/KLIPPER_REMOTE.md.
+  espressif/esp_lvgl_adapter:
+    version: "0.6.4"
+    override_path: "../third_party/esp_lvgl_adapter"
   # Wi-Fi lives on the onboard ESP32-C6 (SDIO). These ranges match the C6
   # firmware Waveshare ships (see their docs/P4_C6_HOSTED_WIFI.md).
   espressif/esp_wifi_remote: "0.14.*"

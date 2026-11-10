@@ -106,4 +106,6 @@ To measure speed:
 - `page <id> [arg]` prints how long the page took to build and how long until its first frame was on screen.
 - `bench` scrolls the page's longest list 60 times and prints frames per second, the time per frame, and how much of that went into rotating and copying the frame to the panel.
 
-For reference, on the 5″ in landscape: a page that scrolls the whole screen runs at about 18–23 fps. About 20 ms of each frame is the rotation copy, and the rest is drawing; both share PSRAM bandwidth with the panel's own refresh. Pages that only change small areas run at the panel's 60 Hz.
+- `fbcheck` compares the panel's frame buffers with LVGL's own render, pixel for pixel. A few pixels at fixed spots on live pages (printer, Wi-Fi, home) always differ, in every mode: that's a quirk of LVGL's snapshot, not a display fault.
+
+For reference, on the 5″ in landscape: a page that scrolls the whole screen runs at about 20–24 fps (18–23 without the background rotation). Drawing and rotating share PSRAM bandwidth with the panel's own refresh. Pages that only change small areas run at the panel's 60 Hz.

@@ -1,2 +1,5 @@
 # Waveshare ESP32-P4-WIFI6-Touch-LCD-5: 720x1280 HX8394
 CONFIG_KR_BOARD_LCD5=y
+# Overlap landscape rotation with drawing (third_party/esp_lvgl_adapter/KLIPPER_REMOTE.md).
+# Tested on this board only; the 7/8/10.1" stay on the blocking path until tried.
+CONFIG_ESP_LVGL_ADAPTER_ASYNC_PARTIAL_ROTATE=y

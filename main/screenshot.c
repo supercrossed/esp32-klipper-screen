@@ -143,6 +143,10 @@ static void timed_flush(lv_display_t *d, const lv_area_t *a, uint8_t *px)
     s_px += (int64_t)lv_area_get_width(a) * lv_area_get_height(a);
 }
 
+/* Counters from the adapter's async partial rotate (absent when it is off). */
+extern volatile uint32_t g_lv_async_rot_queued __attribute__((weak)), g_lv_async_rot_done __attribute__((weak)),
+    g_lv_async_rot_fallback __attribute__((weak)), g_lv_async_rot_timeout __attribute__((weak));
+
 static void find_scrollable(lv_obj_t *o)
 {
     int32_t r = lv_obj_get_scroll_bottom(o) + lv_obj_get_scroll_top(o);
@@ -172,6 +176,10 @@ static void bench_timer(lv_timer_t *t)
                s_frames * 1e6 / (double)wall, s_frames ? s_t_total / s_frames / 1000 : 0, s_t_worst / 1000);
         printf("bench: flush %d calls, %.1f ms/frame in flush (%.1f in the last strip), %lld kpx/frame\n", s_flushes,
                s_frames ? s_t_flush / 1000.0 / s_frames : 0, s_frames ? s_t_flush_last / 1000.0 / s_frames : 0, s_frames ? s_px / s_frames / 1000 : 0);
+        if (&g_lv_async_rot_queued)
+            printf("bench: async rotate queued %lu, done %lu, fell back %lu, timeouts %lu\n",
+                   (unsigned long)g_lv_async_rot_queued, (unsigned long)g_lv_async_rot_done,
+                   (unsigned long)g_lv_async_rot_fallback, (unsigned long)g_lv_async_rot_timeout);
         lv_display_get_default()->flush_cb = s_orig_flush;
         lv_display_remove_event_cb_with_user_data(lv_display_get_default(), refr_cb, NULL);
         lv_timer_delete(t);
@@ -280,4 +288,66 @@ void bench_page_end(void)
     s_pg_built = esp_timer_get_time();
     lv_display_remove_event_cb_with_user_data(lv_display_get_default(), page_ready_cb, NULL);
     lv_display_add_event_cb(lv_display_get_default(), page_ready_cb, LV_EVENT_REFR_READY, NULL);
+}
+
+/* Console `fbcheck`: compare what the panel scans out with what LVGL renders.
+ * Draws anything pending, snapshots the screen, and counts the pixels that
+ * differ in each of the panel's three frame buffers (rotation applied). The
+ * buffer on screen must match exactly; the others may hold older frames. */
+#include "esp_lcd_mipi_dsi.h"
+#include "esp_cache.h"
+#include "app_settings.h"
+extern esp_lcd_panel_handle_t g_kr_panel;
+
+static void fbcheck_async(void *arg)
+{
+    int orient = g_settings.orientation & 3;
+    if (orient != 0 && orient != 1) { printf("fbcheck: only landscape and portrait\n"); return; }
+    if (lv_obj_get_child_count(lv_layer_top()) > 0) { printf("fbcheck: something is on the top layer, try again\n"); return; }
+    lv_refr_now(NULL);
+    lv_draw_buf_t *snap = lv_snapshot_take(lv_screen_active(), LV_COLOR_FORMAT_RGB565);
+    if (!snap) { printf("fbcheck: snapshot failed\n"); return; }
+    void *fb[3] = { 0 };
+    if (!g_kr_panel || esp_lcd_dpi_panel_get_frame_buffer(g_kr_panel, 3, &fb[0], &fb[1], &fb[2]) != ESP_OK) {
+        printf("fbcheck: no frame buffers\n");
+        lv_draw_buf_destroy(snap);
+        return;
+    }
+    const int W = BSP_LCD_H_RES, H = BSP_LCD_V_RES;   /* panel, portrait */
+    int lw = snap->header.w, lh = snap->header.h;
+    size_t sstride = snap->header.stride;
+    int best = -1;
+    long best_bad = -1;
+    for (int k = 0; k < 3; k++) {
+        if (!fb[k]) continue;
+        esp_cache_msync(fb[k], (size_t)W * H * 2, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
+        esp_cache_msync(fb[k], (size_t)W * H * 2, ESP_CACHE_MSYNC_FLAG_DIR_M2C);
+        const uint16_t *p = fb[k];
+        long bad = 0;
+        int fx = -1, fy = -1;
+        for (int y = 0; y < lh; y++) {
+            const uint16_t *s = (const uint16_t *)(snap->data + (size_t)y * sstride);
+            for (int x = 0; x < lw; x++) {
+                int px = orient == 0 ? W - 1 - y : x;
+                int py = orient == 0 ? x : y;
+                if (p[(size_t)py * W + px] != s[x]) {
+                    if (!bad) { fx = x; fy = y; }
+                    bad++;
+                }
+            }
+        }
+        printf("fbcheck: fb%d %ld of %d pixels differ", k, bad, lw * lh);
+        if (bad) printf(" (first at %d,%d)", fx, fy);
+        printf("\n");
+        if (best < 0 || bad < best_bad) { best = k; best_bad = bad; }
+    }
+    printf("fbcheck: %s (best fb%d, %ld differ)\n", best_bad == 0 ? "PASS" : "FAIL", best, best_bad);
+    lv_draw_buf_destroy(snap);
+}
+
+void screenshot_fbcheck(void)
+{
+    bsp_display_lock(-1);
+    lv_async_call(fbcheck_async, NULL);
+    bsp_display_unlock();
 }

@@ -2,6 +2,11 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- **Smoother scrolling on the 5″** (about 7% more frames on full-screen scrolls, e.g. 18.5 → 19.9 fps). The screen is a portrait panel used sideways, so every frame is rotated by the P4's image hardware; that now happens in the background while the next part of the frame is drawn, instead of one after the other. Tested for hours, including 15 minutes of webcam, with the picture checked pixel for pixel against what the UI drew. The 7″, 8″ and 10.1″ keep the old way until they're tested.
+
 ## [0.4.13] - 2026-11-09
 
 ### Added

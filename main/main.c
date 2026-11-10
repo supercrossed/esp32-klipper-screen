@@ -25,8 +25,14 @@ void serial_console_start(void);
 
 /* Draw buffer height in panel lines. The BSP uses 50, which in landscape means
  * a scrolling list is drawn in ~20 strips per frame, each one walking the
- * object tree and laying out every visible label again. */
+ * object tree and laying out every visible label again.
+ * Don't change it without a soak test with the webcam open: on IDF 5.5.6 the
+ * PPA (rotation, also used by the webcam) hangs for some strip sizes. 120 hung
+ * at boot and 160 within a minute of webcam; 240 never did. */
 #define DRAW_BUF_LINES 240
+
+/* For the console's fbcheck (screenshot.c). */
+esp_lcd_panel_handle_t g_kr_panel;
 
 /* Same steps as bsp_display_start_with_config(), with our own draw buffer. */
 static lv_display_t *display_start(const bsp_display_cfg_t *cfg)
@@ -36,6 +42,7 @@ static lv_display_t *display_start(const bsp_display_cfg_t *cfg)
     esp_lcd_panel_handle_t panel = NULL;
     esp_lcd_panel_io_handle_t io = NULL;
     if (bsp_display_new(NULL, &panel, &io) != ESP_OK) return NULL;
+    g_kr_panel = panel;
     esp_lv_adapter_display_config_t dc = {
         .panel = panel,
         .panel_io = io,
