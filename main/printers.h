@@ -95,6 +95,8 @@ typedef struct {
     float    total_duration;      /* s, incl. pauses */
     float    filament_used;       /* mm */
     float    est_slicer;          /* s, slicer estimate from metadata, 0 = unknown */
+    float    filament_total;      /* mm, slicer total from metadata, 0 = unknown */
+    uint32_t gcode_start, gcode_end;   /* byte range of the G-code (no thumbnails/config), 0 = unknown */
     float    eta_s;               /* remaining seconds (best estimate), -1 unknown */
     int      layer, layer_total;  /* -1 unknown */
     float    speed_factor, extrude_factor;

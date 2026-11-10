@@ -263,8 +263,8 @@ static bool discover_objects(poll_ctx_t *c)
     char *q = calloc(1, cap);
     char *ql = calloc(1, lcap);
     q_append(&ql, &lcap, "webhooks", "state,state_message");
-    q_append(&ql, &lcap, "print_stats", "state,filename,print_duration,total_duration,message,info");
-    q_append(&ql, &lcap, "virtual_sdcard", "progress");
+    q_append(&ql, &lcap, "print_stats", "state,filename,print_duration,total_duration,filament_used,message,info");
+    q_append(&ql, &lcap, "virtual_sdcard", "progress,file_position");
     q_append(&ql, &lcap, "display_status", "progress");
     q_append(&q, &cap, "webhooks", "state,state_message");
     q_append(&q, &cap, "print_stats", "state,filename,print_duration,total_duration,filament_used,message,info");
@@ -479,12 +479,17 @@ static void fetch_metadata(poll_ctx_t *c, printer_state_t *s)
 {
     char enc[400], path[512];
     s->est_slicer = 0;
+    s->filament_total = 0;
+    s->gcode_start = s->gcode_end = 0;
     url_encode(s->filename, enc, sizeof(enc), 1);
     snprintf(path, sizeof(path), "/server/files/metadata?filename=%s", enc);
     cJSON *j;
     if (get_json(c, path, &j, 5000) != 200 || !j) { cJSON_Delete(j); return; }
     const cJSON *r = cJSON_GetObjectItem(j, "result");
     s->est_slicer = jnum(r, "estimated_time", 0);
+    s->filament_total = jnum(r, "filament_total", 0);
+    double gs = jnum(r, "gcode_start_byte", 0), ge = jnum(r, "gcode_end_byte", 0);
+    if (gs >= 0 && ge > gs) { s->gcode_start = (uint32_t)gs; s->gcode_end = (uint32_t)ge; }
     if (s->layer_total < 0) {
         const cJSON *lc = cJSON_GetObjectItem(r, "layer_count");
         if (cJSON_IsNumber(lc)) s->layer_total = lc->valueint;
@@ -684,6 +689,7 @@ static void poll_once(poll_ctx_t *c)
     float p = jnum(vsd, "progress", 0);
     float pd = jnum(ds, "progress", 0);
     s->progress = p > 0 ? p : pd;
+    double fpos = jnum(vsd, "file_position", -1);
 
     const cJSON *th = cJSON_GetObjectItem(status, "toolhead");
     if (full) {
@@ -726,17 +732,37 @@ static void poll_once(poll_ctx_t *c)
         s->layer_total = lt > 0 ? lt : -1;
         clear_thumb(c->slot);
         s->est_slicer = 0;
+        s->filament_total = 0;
+        s->gcode_start = s->gcode_end = 0;
         if (s->filename[0]) fetch_metadata(c, s);
     }
 
-    /* Remaining time: file-progress based (like Mainsail's default), slicer as fallback early on. */
+    /* Progress like Mainsail ("file relative"): position within the G-code itself,
+     * so the slicer's thumbnails at the top and config block at the end don't count.
+     * Raw virtual_sdcard progress lags behind and made the time left too long. */
+    if (s->gcode_end > s->gcode_start && fpos >= 0) {
+        if (fpos <= s->gcode_start) s->progress = 0;
+        else if (fpos >= s->gcode_end) s->progress = 1;
+        else s->progress = (float)((fpos - s->gcode_start) / (double)(s->gcode_end - s->gcode_start));
+    }
+
+    /* Time left, like Mainsail's default: the average of the file-progress and the
+     * filament-used estimates. Early on (under 5%) those swing wildly, so the
+     * slicer's own estimate is used while there is one. */
     s->eta_s = -1;
     if (s->status == PS_PRINTING || s->status == PS_PAUSED) {
-        float file_eta = (s->progress > 0.001f) ? s->print_duration / s->progress - s->print_duration : -1;
-        float slicer_eta = s->est_slicer > 0 ? s->est_slicer - s->print_duration : -1;
-        if (s->progress >= 0.05f && file_eta >= 0) s->eta_s = file_eta;
+        float pdur = s->print_duration;
+        float file_eta = (s->progress > 0.001f && pdur > 0) ? pdur / s->progress - pdur : -1;
+        float fil = (s->filament_total > 0 && s->filament_used > 0) ? s->filament_used / s->filament_total : 0;
+        float fil_eta = (fil > 0.001f && pdur > 0) ? pdur / fil - pdur : -1;
+        float slicer_eta = s->est_slicer > 0 ? s->est_slicer - pdur : -1;
+        float sum = 0;
+        int n = 0;
+        if (file_eta > 0) { sum += file_eta; n++; }
+        if (fil_eta > 0) { sum += fil_eta; n++; }
+        if (s->progress < 0.05f && slicer_eta > 0) s->eta_s = slicer_eta;
+        else if (n) s->eta_s = sum / n;
         else if (slicer_eta > 0) s->eta_s = slicer_eta;
-        else s->eta_s = file_eta;
         if (s->eta_s < 0 && s->progress > 0) s->eta_s = 0;
     }
 

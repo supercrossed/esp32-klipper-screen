@@ -63,6 +63,10 @@ static void handle(char *line)
             printf("%d: %s %s:%u  %s  %.0f%%  heaters=%d mmu=%d lanes=%d cams=%d  %s\n", i, c.name, c.host, c.port,
                    printer_status_str(st.status), st.progress * 100, st.nheaters, st.mmu.type, st.mmu.nlanes,
                    st.nwebcams, st.message);
+            if (st.eta_s >= 0)
+                printf("   left %.0f min (printing %.0f min, filament %.0f/%.0f mm, slicer %.0f min, gcode bytes %lu-%lu)\n",
+                       st.eta_s / 60, st.print_duration / 60, st.filament_used, st.filament_total, st.est_slicer / 60,
+                       (unsigned long)st.gcode_start, (unsigned long)st.gcode_end);
         }
     } else if (!strcmp(argv[0], "status")) {
         esp_netif_ip_info_t ip;

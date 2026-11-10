@@ -14,6 +14,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project u
 - The **Print finished** and **Print cancelled** banners go away by themselves after 10 seconds. Failures and stops still stay until you dismiss them.
 - Release file names now include the screen size (`5in`, `7in`, `8in`, `10in`), for example `esp32-klipper-screen-5in-v0.4.12.bin` and `bootloader-5in.bin`. The 5″ app file keeps its old name, so 5″ screens update as before.
 
+### Fixed
+- **Time left now matches Mainsail.** Progress counts only the G-code itself, not the slicer's thumbnails and settings stored in the same file, so it no longer lags behind. Time left is now the average of the file-progress and filament-used estimates, like Mainsail's default. Before, it could show about twice as long as Mainsail near the end of a print.
+
 ## [0.4.11] - 2026-11-08
 
 ### Changed

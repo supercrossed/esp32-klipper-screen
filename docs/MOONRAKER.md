@@ -45,7 +45,8 @@ Commands sent: AFC `CHANGE_TOOL LANE=<lane>`, `TOOL_UNLOAD`; Happy Hare `MMU_CHA
 ## Other things it uses
 
 - **Status:** `print_stats`, `virtual_sdcard`, `display_status`, `webhooks`, `toolhead`, `gcode_move`, `idle_timeout`, `fan`, every `extruder*`, `heater_bed`, and any `temperature_sensor` / `heater_generic` / `temperature_fan` whose name contains `chamber`.
-- **Thumbnails** come from `/server/files/metadata`; the largest thumbnail up to 400 px wide is used. The slicer's `estimated_time` is the ETA fallback early in a print.
+- **Thumbnails** come from `/server/files/metadata`; the largest thumbnail up to 400 px wide is used. The same metadata gives `gcode_start_byte`/`gcode_end_byte` and `filament_total`.
+- **Progress and time left** work like Mainsail's defaults. Progress is `virtual_sdcard.file_position` within the G-code byte range, so the thumbnails and slicer settings stored in the file don't count. Time left is the average of the file-progress estimate (`print_duration / progress - print_duration`) and the filament estimate (the same, using `filament_used / filament_total`). Below 5% progress, the slicer's `estimated_time` is used instead, because the other two swing wildly that early.
 - **Macros:** every `gcode_macro` not starting with `_`. Also `LOAD_FILAMENT` / `UNLOAD_FILAMENT` on the Extrude tab, `QUAD_GANTRY_LEVEL` / `Z_TILT_ADJUST` on the Move tab, and `TURN_OFF_HEATERS`.
 - **Remaining time** is estimated from file progress (`print_duration / progress − print_duration`), the same as Mainsail's default.
 
