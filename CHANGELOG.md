@@ -10,6 +10,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project u
 - **Colour themes.** Settings → Display → Colour theme: Slate (the look so far), Midnight, Forest, Ember, Ocean, Rose and Graphite (true black). Each has its own dark and light version and follows Dark / Light / Auto. A theme brings its own accent colour; pick a different accent on top if you like, or *Theme* to go back to the theme's own. Buttons, dropdowns and switches now follow the theme too.
 
 ### Changed
+- **The home page opens faster:** about 130 ms instead of 170 ms when a printer has a job thumbnail. Each thumbnail is now decoded and shrunk once, and kept until the printer's job changes, instead of being decoded again every time.
 - The **Print finished** and **Print cancelled** banners go away by themselves after 10 seconds. Failures and stops still stay until you dismiss them.
 - Release file names now include the screen size (`5in`, `7in`, `8in`, `10in`), for example `esp32-klipper-screen-5in-v0.4.12.bin` and `bootloader-5in.bin`. The 5″ app file keeps its old name, so 5″ screens update as before.
 

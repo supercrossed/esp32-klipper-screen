@@ -59,7 +59,7 @@ Internal SRAM (about 100 KB free) is the scarce resource. esp_hosted allocates a
 - **Printer page**: only the selected sidebar tab is built. On close, polling for that printer drops back to the slow, light query.
 - **Webcam**: the task, JPEG and PPA engines, and the roughly 5–10 MB of frame buffers exist only while it's open.
 - **Spoolman**: its lists are freed on close.
-- **Thumbnails**: each tile holds its own copy, freed with the tile.
+- **Thumbnails** are the one exception. [`ui_thumb.c`](../main/ui/ui_thumb.c) decodes each print thumbnail once, already shrunk to the size it is shown at, and keeps it in PSRAM until that printer gets a new thumbnail. Up to 8 unused ones are kept (about 43 KB each at the usual tile size, at most ~190 KB at the largest), so going back to the home page doesn't decode the PNG again. That saved about 40 ms each time the home page opened. Entries are found by thumbnail version, which is unique across printers, so a picture can't end up on the wrong printer.
 
 ## Polling
 

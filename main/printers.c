@@ -51,6 +51,10 @@ static int s_alert_head, s_alert_n;
 #define LOCK()   xSemaphoreTake(s_mtx, portMAX_DELAY)
 #define UNLOCK() xSemaphoreGive(s_mtx)
 
+/* Thumbnail versions are unique across all printers (the UI caches decoded
+ * thumbnails by version). 0 means "never had one". Take it with LOCK held. */
+static uint32_t s_thumb_gen;
+
 /* ── helpers ─────────────────────────────────────────────────────────── */
 
 static void *psram_malloc(size_t n)
@@ -519,7 +523,7 @@ static void fetch_metadata(poll_ctx_t *c, printer_state_t *s)
         if (c->slot->st.thumb) heap_caps_free(c->slot->st.thumb);
         c->slot->st.thumb = tb.data;
         c->slot->st.thumb_len = tb.len;
-        c->slot->st.thumb_ver++;
+        c->slot->st.thumb_ver = ++s_thumb_gen;
         UNLOCK();
         ESP_LOGI(TAG, "[%s] thumbnail %ux? %u bytes", cfg.name, bw, (unsigned)tb.len);
         return;
@@ -533,7 +537,7 @@ static void clear_thumb(slot_t *sl)
     if (sl->st.thumb) heap_caps_free(sl->st.thumb);
     sl->st.thumb = NULL;
     sl->st.thumb_len = 0;
-    sl->st.thumb_ver++;
+    sl->st.thumb_ver = ++s_thumb_gen;
     UNLOCK();
 }
 

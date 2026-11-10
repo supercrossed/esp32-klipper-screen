@@ -100,3 +100,10 @@ Run `shot` on the serial console, then `python tools/screenshot.py <display-ip> 
 ## Headless testing
 
 The USB-UART console (115200 baud) takes commands such as `wifi`, `add`, `list`, `scan` and `page`, which make it possible to test without touching the screen. See [TROUBLESHOOTING.md](TROUBLESHOOTING.md#serial-console).
+
+To measure speed:
+
+- `page <id> [arg]` prints how long the page took to build and how long until its first frame was on screen.
+- `bench` scrolls the page's longest list 60 times and prints frames per second, the time per frame, and how much of that went into rotating and copying the frame to the panel.
+
+For reference, on the 5″ in landscape: a page that scrolls the whole screen runs at about 18–23 fps. About 20 ms of each frame is the rotation copy, and the rest is drawing; both share PSRAM bandwidth with the panel's own refresh. Pages that only change small areas run at the panel's 60 Hz.

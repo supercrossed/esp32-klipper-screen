@@ -102,9 +102,12 @@ static void handle(char *line)
         }
     } else if (!strcmp(argv[0], "page") && argc >= 2) {
         /* page <id> [arg]: 0 home 1 printer 2 webcam(arg=idx*16+cam) 3 add 4 settings 5 wifi */
+        extern void bench_page_begin(void), bench_page_end(void);
         bsp_display_lock(-1);
+        bench_page_begin();
         if (atoi(argv[1]) == 0) ui_nav_home();
         else ui_nav_push((page_id_t)atoi(argv[1]), argc >= 3 ? atoi(argv[2]) : 0);
+        bench_page_end();   /* prints build time and time to first frame */
         bsp_display_unlock();
     } else if (!strcmp(argv[0], "shot")) {
         esp_netif_ip_info_t ip;

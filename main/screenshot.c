@@ -10,6 +10,7 @@
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "lvgl.h"
+#include "src/display/lv_display_private.h"
 #include "bsp/esp-bsp.h"
 #include <stdio.h>
 #include "esp_timer.h"
@@ -124,6 +125,23 @@ static lv_obj_t *s_best;
 static int32_t s_best_range;
 static int s_step = -1, s_frames;
 static int64_t s_t_start, s_t_total, s_t_worst, s_t_frame0;
+/* Time spent inside the panel flush (rotate + copy to the frame buffer). */
+static lv_display_flush_cb_t s_orig_flush;
+static int64_t s_t_flush, s_t_flush_last;
+static int s_flushes;
+static int64_t s_px;
+
+static void timed_flush(lv_display_t *d, const lv_area_t *a, uint8_t *px)
+{
+    bool last = lv_display_flush_is_last(d);
+    int64_t t0 = esp_timer_get_time();
+    s_orig_flush(d, a, px);
+    int64_t dt = esp_timer_get_time() - t0;
+    s_t_flush += dt;
+    if (last) s_t_flush_last += dt;
+    s_flushes++;
+    s_px += (int64_t)lv_area_get_width(a) * lv_area_get_height(a);
+}
 
 static void find_scrollable(lv_obj_t *o)
 {
@@ -152,6 +170,9 @@ static void bench_timer(lv_timer_t *t)
         printf("bench: %u items, %ld px of scroll: %d frames in %lld ms (%.1f fps), render avg %lld ms, worst %lld ms\n",
                (unsigned)lv_obj_get_child_count(s_best), (long)s_best_range, s_frames, wall / 1000,
                s_frames * 1e6 / (double)wall, s_frames ? s_t_total / s_frames / 1000 : 0, s_t_worst / 1000);
+        printf("bench: flush %d calls, %.1f ms/frame in flush (%.1f in the last strip), %lld kpx/frame\n", s_flushes,
+               s_frames ? s_t_flush / 1000.0 / s_frames : 0, s_frames ? s_t_flush_last / 1000.0 / s_frames : 0, s_frames ? s_px / s_frames / 1000 : 0);
+        lv_display_get_default()->flush_cb = s_orig_flush;
         lv_display_remove_event_cb_with_user_data(lv_display_get_default(), refr_cb, NULL);
         lv_timer_delete(t);
         s_step = -1;
@@ -171,6 +192,10 @@ static void bench_async(void *arg)
     s_frames = 0;
     s_t_total = s_t_worst = s_t_frame0 = 0;
     s_t_start = esp_timer_get_time();
+    s_t_flush = s_t_flush_last = s_px = 0;
+    s_flushes = 0;
+    s_orig_flush = lv_display_get_default()->flush_cb;
+    lv_display_get_default()->flush_cb = timed_flush;
     lv_display_add_event_cb(lv_display_get_default(), refr_cb, LV_EVENT_REFR_START, NULL);
     lv_display_add_event_cb(lv_display_get_default(), refr_cb, LV_EVENT_REFR_READY, NULL);
     lv_timer_create(bench_timer, 16, NULL);
@@ -235,4 +260,24 @@ bool screenshot_tap(int x, int y)
     lv_async_call(tap_async, NULL);
     bsp_display_unlock();
     return true;
+}
+
+/* Page timing (console `page`): build time, and time until that page's first
+ * frame is on the panel. Call both with the display lock held. */
+static int64_t s_pg_t0, s_pg_built;
+
+static void page_ready_cb(lv_event_t *e)
+{
+    int64_t now = esp_timer_get_time();
+    printf("page: built in %lld ms, on screen after %lld ms\n", (s_pg_built - s_pg_t0) / 1000, (now - s_pg_t0) / 1000);
+    lv_display_remove_event_cb_with_user_data(lv_display_get_default(), page_ready_cb, NULL);
+}
+
+void bench_page_begin(void) { s_pg_t0 = esp_timer_get_time(); }
+
+void bench_page_end(void)
+{
+    s_pg_built = esp_timer_get_time();
+    lv_display_remove_event_cb_with_user_data(lv_display_get_default(), page_ready_cb, NULL);
+    lv_display_add_event_cb(lv_display_get_default(), page_ready_cb, LV_EVENT_REFR_READY, NULL);
 }
