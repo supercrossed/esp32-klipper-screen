@@ -42,10 +42,15 @@ Connect at **115200 baud** to the board's USB-UART, for example with `idf.py -p 
 | `lanes <idx>` | MMU lanes and webcams for printer `idx` |
 | `scan` | Run network discovery and print the results |
 | `focus <idx>` | Poll printer `idx` fast (as if it were open) |
-| `page <id> [arg]` | Navigate the UI: 0 home, 1 printer(arg=idx), 2 webcam(arg=idx·16), 3 add, 4 settings, 5 Wi-Fi, 6 Spoolman(arg=idx) |
+| `page <id> [arg]` | Navigate the UI: 0 home, 1 printer(arg=idx), 2 webcam(arg=idx·16), 3 add, 4 settings(arg=tab), 5 Wi-Fi, 6 Spoolman(arg=idx), 7 files(arg=idx) |
 | `upd check` / `upd install` / `upd status` | Check for updates, install the available one, show updater state |
 | `shot` | Start the screenshot server (`http://<ip>:8080/screenshot.bmp`) |
-| `tap <x> <y>` | Simulate a tap |
+| `tap <x> <y>` | Touch the screen there (a virtual finger, so tabs, rollers and keyboards work) |
+| `swipe <x> <y0> <y1>` | Drag vertically, to scroll |
+| `type <text>` / `type!` | Type into the field that has the keyboard / press its OK key (`type ~` is backspace) |
+| `orient <0-3>` | Landscape, portrait, landscape flipped, portrait flipped (saves and restarts) |
+| `label` / `label scan` / `label use <n>` / `label test` / `label forget` | Label printer: status, search, choose result n, print the test label, forget |
+| `label dry 1` / `label dump` | Testing: draw labels but don't send them / print the last label's TSPL as hex |
 | `theme light` / `theme dark` | Switch the theme |
 | `sound` / `sound error` | Play the finished / problem chime |
 | `tasks` | List running tasks and their state (helps with freeze reports) |

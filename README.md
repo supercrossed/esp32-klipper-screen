@@ -25,7 +25,7 @@ It runs on the Waveshare ESP32-P4 touch displays: [5″](https://www.waveshare.c
 - **Console.** See the printer's console and type commands, like in Mainsail or Fluidd.
 - **System controls.** Restart Klipper, restart services, or reboot and shut down the printer's computer.
 - **Watch the camera** full screen.
-- **Multi-material and Spoolman.** AFC (Box Turtle) and Happy Hare: see which filament is in each lane and where the loaded one is. With Spoolman, browse your spools and filaments, pick the active spool, and show a spool's QR code to scan.
+- **Multi-material and Spoolman.** AFC (Box Turtle) and Happy Hare: see which filament is in each lane and where the loaded one is. With Spoolman, browse, add and edit spools, filaments and manufacturers (the same fields as Spoolman's web page, or filled in from Spoolman's filament database), weigh a spool, pick the active spool, show QR codes to scan, and print QR labels on a Bluetooth label printer.
 - **Runs on a battery** too: plug an 18650 or LiPo into the board and the top bar shows its charge.
 - **Looks the way you like.** Seven colour themes, each in light and dark, switched automatically at sunrise and sunset if you like, plus six accent colours. It also connects to Wi-Fi on first start, keeps the time, and works in landscape or portrait.
 

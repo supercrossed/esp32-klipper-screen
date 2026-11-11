@@ -1,6 +1,7 @@
 /*
  * Keyboard layouts: number row on the text layouts, and an IP/port numpad
- * (LV_KEYBOARD_MODE_USER_1) with '.' and ':' for addresses. "123" jumps to the
+ * (LV_KEYBOARD_MODE_USER_1) with '.' and ':' for addresses, and a number pad
+ * (LV_KEYBOARD_MODE_USER_3) with '.' and '-' for forms. "123" jumps to the
  * numpad, "abc" back to letters.
  */
 #include "ui.h"
@@ -79,6 +80,14 @@ static const lv_buttonmatrix_ctrl_t kb_ip_ctrl[] = {
     FN(3), 3, CHK(2), CHK(2), FN(2),
 };
 
+/* plain numbers (forms): '.' and '-' */
+static const char *const kb_num[] = {
+    "1", "2", "3", LV_SYMBOL_BACKSPACE, "\n",
+    "4", "5", "6", ".", "\n",
+    "7", "8", "9", "-", "\n",
+    LV_SYMBOL_KEYBOARD, "0", LV_SYMBOL_LEFT, LV_SYMBOL_RIGHT, LV_SYMBOL_OK, ""
+};
+
 #define KB_CAPS LV_KEYBOARD_MODE_USER_2
 #define DOUBLE_TAP_US 450000
 static int64_t s_last_shift;
@@ -115,6 +124,7 @@ void ui_keyboard_setup(lv_obj_t *kb)
     lv_keyboard_set_map(kb, KB_CAPS, kb_caps, kb_txt_ctrl);
     lv_keyboard_set_map(kb, LV_KEYBOARD_MODE_SPECIAL, kb_sym, kb_sym_ctrl);
     lv_keyboard_set_map(kb, LV_KEYBOARD_MODE_USER_1, kb_ip, kb_ip_ctrl);
+    lv_keyboard_set_map(kb, LV_KEYBOARD_MODE_USER_3, kb_num, kb_ip_ctrl);
     lv_keyboard_set_popovers(kb, true);
     lv_obj_remove_event_cb(kb, lv_keyboard_def_event_cb);
     lv_obj_add_event_cb(kb, kb_cb, LV_EVENT_VALUE_CHANGED, NULL);

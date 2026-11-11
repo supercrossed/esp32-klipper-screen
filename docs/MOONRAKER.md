@@ -29,9 +29,15 @@ Requires Moonraker's [`[spoolman]`](https://moonraker.readthedocs.io/en/latest/c
 server: http://192.168.1.50:7912
 ```
 
-The display uses `GET /server/spoolman/status`, `POST /server/spoolman/proxy` (to read `/v1/spool` and `/v1/filament`) and `POST /server/spoolman/spool_id` (to set the active spool). It never talks to Spoolman directly. Archived spools are hidden.
+The display uses `GET /server/spoolman/status`, `POST /server/spoolman/spool_id` (to set the active spool) and `POST /server/spoolman/proxy` for everything else, so it never talks to Spoolman directly:
 
-The QR code shown for a spool encodes `web+spoolman:s-<id>`, the same payload as Spoolman's printed labels.
+- It reads `/v1/spool` (archived ones too), `/v1/filament`, `/v1/vendor`, `/v1/setting/` (currency, base URL, extra fields, locations), `/v1/location`, `/v1/material` and `/v1/external/material`.
+- The forms use `POST`, `PATCH` and `DELETE` on `/v1/spool`, `/v1/filament` and `/v1/vendor`. **Weigh** uses `PUT /v1/spool/<id>/measure`.
+- `/v1/external/filament` (about 3.5 MB) is downloaded only when you search the filament database, and freed when the form closes.
+
+QR codes: a spool's encodes `web+spoolman:s-<id>`, the payload of Spoolman's printed labels and what scanner setups expect, or, if set in Settings → Label printer, `<spoolman>/spool/show/<id>` for phones. A filament's is `<spoolman>/filament/show/<id>`. `<spoolman>` is Spoolman's *Base URL* setting if set, otherwise the `server` from Moonraker's `[spoolman]` section (with `localhost` replaced by the printer's address).
+
+If several printers share one Spoolman, open it from any of them: changes show up on all.
 
 ## Multi-material
 

@@ -21,8 +21,10 @@ SIZES = {
     "regular": [16, 20, 24, 32, 48],
     "bold": [16, 18, 20, 22, 24, 26, 28, 30, 32, 40, 44],
 }
-# ASCII, Latin-1 (accented names), en/em dash, quotes, bullet, ellipsis
-RANGES = [(0x20, 0x7E), (0xA0, 0xFF), (0x2013, 0x2014), (0x2018, 0x201D), (0x2022, 0x2022), (0x2026, 0x2026)]
+# ASCII, Latin-1 (accented names), L/l with stroke (zł), en/em dash, quotes, bullet, ellipsis,
+# currency signs (Spoolman prices: € ₩ ₹ ₽), trade mark (filament names)
+RANGES = [(0x20, 0x7E), (0xA0, 0xFF), (0x141, 0x142), (0x2013, 0x2014), (0x2018, 0x201D), (0x2022, 0x2022), (0x2026, 0x2026),
+          (0x20A9, 0x20A9), (0x20AC, 0x20AC), (0x20B9, 0x20B9), (0x20BD, 0x20BD), (0x2122, 0x2122)]
 
 
 def render(font, ch):

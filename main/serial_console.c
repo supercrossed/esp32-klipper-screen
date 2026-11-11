@@ -6,7 +6,9 @@
  *   status                     Wi-Fi + memory
  *   scan                       network discovery
  *   shot                       start screenshot server (GET :8080/screenshot.bmp)
- *   tap <x> <y>                simulated tap
+ *   tap <x> <y>                simulated touch (a virtual finger)
+ *   swipe <x> <y0> <y1>        simulated vertical drag
+ *   type <text> / type!        type into the focused field / press OK
  *   theme light|dark
  *   reboot
  */
@@ -29,12 +31,21 @@
 #include "updater.h"
 #include "sound.h"
 #include "battery.h"
+#include "label_printer.h"
 
 bool screenshot_server_start(void);
 bool screenshot_tap(int x, int y);
 
 static void handle(char *line)
 {
+    /* type <text>: into the field the on-screen keyboard is on (testing); "type!" = press OK */
+    if (!strncmp(line, "type ", 5) || !strcmp(line, "type!")) {
+        bsp_display_lock(-1);
+        bool ok = line[4] == '!' ? ui_type_text(NULL, true) : ui_type_text(line + 5, false);
+        bsp_display_unlock();
+        printf(ok ? "typed\n" : "no field has the keyboard\n");
+        return;
+    }
     char *argv[4] = {0};
     int argc = 0;
     for (char *t = strtok(line, " \t"); t && argc < 4; t = strtok(NULL, argc == 2 && !strcmp(argv[0], "add") ? "" : " \t"))
@@ -120,7 +131,12 @@ static void handle(char *line)
         else
             printf("screenshot server not started (Wi-Fi?)\n");
     } else if (!strcmp(argv[0], "tap") && argc >= 3) {
-        printf(screenshot_tap(atoi(argv[1]), atoi(argv[2])) ? "tapped\n" : "nothing there\n");
+        printf(screenshot_tap(atoi(argv[1]), atoi(argv[2])) ? "tapped\n" : "busy\n");
+    } else if (!strcmp(argv[0], "swipe") && argc >= 4) {
+        /* swipe <x> <y0> <y1>: vertical drag (scrolling) */
+        extern bool screenshot_swipe(int x0, int y0, int x1, int y1);
+        int x = atoi(argv[1]);
+        printf(screenshot_swipe(x, atoi(argv[2]), x, atoi(argv[3])) ? "swiped\n" : "busy\n");
     } else if (!strcmp(argv[0], "theme") && argc >= 2) {
         bsp_display_lock(-1);
         ui_set_light_mode(!strcmp(argv[1], "light"));
@@ -161,6 +177,71 @@ static void handle(char *line)
                                           "efuse", "power-glitch", "cpu-lockup" };
         int rr = esp_reset_reason();
         printf("last restart: %s (%d)\n", rr >= 0 && rr < (int)(sizeof(RR) / sizeof(RR[0])) ? RR[rr] : "?", rr);
+    } else if (!strcmp(argv[0], "label")) {
+        /* label scan | label use <n> | label test | label forget | label (status) */
+        static label_dev_t d[LABEL_SCAN_MAX];
+        const char *sub = argc >= 2 ? argv[1] : "";
+        if (!strcmp(sub, "scan")) {
+            label_scan(6);
+            vTaskDelay(pdMS_TO_TICKS(500));
+            char m[96];
+            while (label_state(m, sizeof(m)) == LABEL_SCANNING || label_state(m, sizeof(m)) == LABEL_STARTING)
+                vTaskDelay(pdMS_TO_TICKS(300));
+            int n = label_scan_results(d, LABEL_SCAN_MAX);
+            for (int i = 0; i < n; i++)
+                printf("  %d: %-24s %02X:%02X:%02X:%02X:%02X:%02X type %d  %d dBm\n", i, d[i].name, d[i].addr[5], d[i].addr[4],
+                       d[i].addr[3], d[i].addr[2], d[i].addr[1], d[i].addr[0], d[i].addr_type, d[i].rssi);
+            printf("label scan: %s\n", m);
+        } else if (!strcmp(sub, "use") && argc >= 3) {
+            int i = atoi(argv[2]), n = label_scan_results(d, LABEL_SCAN_MAX);
+            if (i >= 0 && i < n) {
+                label_cfg_t c;
+                label_cfg_get(&c);
+                c.have = true;
+                strlcpy(c.name, d[i].name, sizeof(c.name));
+                memcpy(c.addr, d[i].addr, 6);
+                c.addr_type = d[i].addr_type;
+                label_cfg_set(&c);
+                printf("label printer: %s\n", c.name);
+            } else printf("run 'label scan' first\n");
+        } else if (!strcmp(sub, "test")) {
+            extern void ui_label_test(void);
+            bsp_display_lock(-1);
+            ui_label_test();
+            bsp_display_unlock();
+        } else if (!strcmp(sub, "forget")) {
+            label_forget();
+        } else if (!strcmp(sub, "dry") && argc >= 3) {
+            label_set_dry(atoi(argv[2]));
+        } else if (!strcmp(sub, "dump")) {
+            /* the last label as hex, 64 bytes per line */
+            size_t n = label_last(NULL, 0);
+            uint8_t *b = n ? heap_caps_malloc(n, MALLOC_CAP_SPIRAM) : NULL;
+            if (b) {
+                n = label_last(b, n);
+                printf("LABELDUMP %u\n", (unsigned)n);
+                for (size_t i = 0; i < n; i += 64) {
+                    printf("LD ");
+                    for (size_t k = i; k < n && k < i + 64; k++) printf("%02x", b[k]);
+                    printf("\n");
+                }
+                printf("LABELEND\n");
+                heap_caps_free(b);
+            }
+        }
+        label_cfg_t c;
+        label_cfg_get(&c);
+        char m[96];
+        label_state_t st = label_state(m, sizeof(m));
+        printf("label: printer %s, state %d (%s), connected %d, nudge %d,%d mm, density %u\n", c.have ? c.name : "(none)", st, m,
+               label_connected(), c.dx_mm, c.dy_mm, c.density);
+    } else if (!strcmp(argv[0], "orient") && argc >= 2) {
+        /* orient 0..3: landscape, portrait, landscape flipped, portrait flipped (saved, restarts) */
+        g_settings.orientation = atoi(argv[1]) & 3;
+        settings_save();
+        printf("orientation %d, restarting\n", g_settings.orientation);
+        vTaskDelay(pdMS_TO_TICKS(200));
+        esp_restart();
     } else if (!strcmp(argv[0], "reboot")) {
         esp_restart();
     } else {

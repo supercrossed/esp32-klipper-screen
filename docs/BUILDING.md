@@ -95,7 +95,7 @@ The UI text is [Inter](https://rsms.me/inter/) (OFL-1.1), pre-rendered into LVGL
 
 ## Screenshots
 
-Run `shot` on the serial console, then `python tools/screenshot.py <display-ip> out.png`. The console's `page`, `tap` and `theme` commands let you set up each screen without touching it.
+Run `shot` on the serial console, then `python tools/screenshot.py <display-ip> out.png`. The console's `page`, `tap`, `swipe`, `type`, `orient` and `theme` commands let you set up each screen without touching it.
 
 ## Headless testing
 

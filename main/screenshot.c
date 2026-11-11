@@ -167,12 +167,20 @@ static void refr_cb(lv_event_t *e)
     }
 }
 
+/* The page can change during a run (console `page`): stop instead of scrolling a deleted object. */
+static void best_deleted(lv_event_t *e)
+{
+    s_best = NULL;
+    printf("bench: the page closed during the run\n");
+}
+
 static void bench_timer(lv_timer_t *t)
 {
+    if (!s_best) s_step = 60;
     if (s_step >= 60) {
         int64_t wall = esp_timer_get_time() - s_t_start;
         printf("bench: %u items, %ld px of scroll: %d frames in %lld ms (%.1f fps), render avg %lld ms, worst %lld ms\n",
-               (unsigned)lv_obj_get_child_count(s_best), (long)s_best_range, s_frames, wall / 1000,
+               s_best ? (unsigned)lv_obj_get_child_count(s_best) : 0, (long)s_best_range, s_frames, wall / 1000,
                s_frames * 1e6 / (double)wall, s_frames ? s_t_total / s_frames / 1000 : 0, s_t_worst / 1000);
         printf("bench: flush %d calls, %.1f ms/frame in flush (%.1f in the last strip), %lld kpx/frame\n", s_flushes,
                s_frames ? s_t_flush / 1000.0 / s_frames : 0, s_frames ? s_t_flush_last / 1000.0 / s_frames : 0, s_frames ? s_px / s_frames / 1000 : 0);
@@ -182,6 +190,7 @@ static void bench_timer(lv_timer_t *t)
                    (unsigned long)g_lv_async_rot_fallback, (unsigned long)g_lv_async_rot_timeout);
         lv_display_get_default()->flush_cb = s_orig_flush;
         lv_display_remove_event_cb_with_user_data(lv_display_get_default(), refr_cb, NULL);
+        if (s_best) lv_obj_remove_event_cb(s_best, best_deleted);
         lv_timer_delete(t);
         s_step = -1;
         return;
@@ -206,6 +215,7 @@ static void bench_async(void *arg)
     lv_display_get_default()->flush_cb = timed_flush;
     lv_display_add_event_cb(lv_display_get_default(), refr_cb, LV_EVENT_REFR_START, NULL);
     lv_display_add_event_cb(lv_display_get_default(), refr_cb, LV_EVENT_REFR_READY, NULL);
+    lv_obj_add_event_cb(s_best, best_deleted, LV_EVENT_DELETE, NULL);
     lv_timer_create(bench_timer, 16, NULL);
 }
 
@@ -246,29 +256,50 @@ bool screenshot_server_start(void)
 }
 
 /* Simulated tap for headless captures: click the clickable object under (x, y). */
-static lv_point_t s_tap;
+/* Console `tap` / `swipe`: a second (virtual) touch input, so taps go through
+ * LVGL exactly like a finger: buttons, tabs, rollers, keyboards, scrolling. */
+static lv_indev_t *s_vt;
+static volatile int s_vt_x0, s_vt_y0, s_vt_x1, s_vt_y1;
+static volatile uint32_t s_vt_start, s_vt_ms;   /* press time, length (ms) */
+static volatile bool s_vt_on;
 
-/* Runs on the LVGL task: click handlers may build whole pages. */
-static void tap_async(void *arg)
+static void vt_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
-    lv_obj_t *o = NULL;
-    lv_obj_t *top = lv_layer_top();
-    for (int i = (int)lv_obj_get_child_count(top) - 1; i >= 0 && !o; i--)   /* newest overlay first */
-        o = lv_indev_search_obj(lv_obj_get_child(top, i), &s_tap);
-    if (!o) o = lv_indev_search_obj(lv_screen_active(), &s_tap);
-    while (o && !lv_obj_has_flag(o, LV_OBJ_FLAG_CLICKABLE)) o = lv_obj_get_parent(o);
-    if (o) lv_obj_send_event(o, LV_EVENT_CLICKED, NULL);
+    uint32_t t = lv_tick_elaps(s_vt_start);
+    if (!s_vt_on || t > s_vt_ms) {
+        s_vt_on = false;
+        data->point.x = s_vt_x1;
+        data->point.y = s_vt_y1;
+        data->state = LV_INDEV_STATE_RELEASED;
+        return;
+    }
+    /* move from start to end over the first 80 % (a swipe), then hold */
+    uint32_t mv = s_vt_ms * 4 / 5;
+    int32_t f = mv ? (int32_t)(t > mv ? 1000 : t * 1000 / mv) : 1000;
+    data->point.x = s_vt_x0 + (s_vt_x1 - s_vt_x0) * f / 1000;
+    data->point.y = s_vt_y0 + (s_vt_y1 - s_vt_y0) * f / 1000;
+    data->state = LV_INDEV_STATE_PRESSED;
 }
 
-bool screenshot_tap(int x, int y)
+static bool vt_press(int x0, int y0, int x1, int y1, int ms)
 {
+    if (s_vt_on) return false;
     bsp_display_lock(-1);
-    s_tap.x = x;
-    s_tap.y = y;
-    lv_async_call(tap_async, NULL);
+    if (!s_vt) {
+        s_vt = lv_indev_create();
+        lv_indev_set_type(s_vt, LV_INDEV_TYPE_POINTER);
+        lv_indev_set_read_cb(s_vt, vt_read);
+    }
+    s_vt_x0 = x0; s_vt_y0 = y0; s_vt_x1 = x1; s_vt_y1 = y1;
+    s_vt_ms = ms;
+    s_vt_start = lv_tick_get();
+    s_vt_on = true;
     bsp_display_unlock();
     return true;
 }
+
+bool screenshot_tap(int x, int y) { return vt_press(x, y, x, y, 120); }
+bool screenshot_swipe(int x0, int y0, int x1, int y1) { return vt_press(x0, y0, x1, y1, 500); }
 
 /* Page timing (console `page`): build time, and time until that page's first
  * frame is on the panel. Call both with the display lock held. */

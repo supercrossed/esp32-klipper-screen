@@ -2,6 +2,7 @@
 #include "lvgl.h"
 #include "src/misc/cache/instance/lv_image_cache.h"
 #include <stdbool.h>
+#include <time.h>
 
 /* ── pages ───────────────────────────────────────────────────────────── */
 typedef enum {
@@ -13,6 +14,7 @@ typedef enum {
     PAGE_WIFI,
     PAGE_SPOOLMAN,        /* arg: printer idx */
     PAGE_FILES,           /* arg: printer idx */
+    PAGE_SPOOL_FORM,      /* arg: see page_spool_form.c */
     PAGE_COUNT
 } page_id_t;
 
@@ -23,7 +25,7 @@ typedef struct {
     void (*destroy)(void);    /* free everything the page owns (called before widgets are deleted) */
 } ui_page_t;
 
-extern const ui_page_t page_home, page_printer, page_webcam, page_add_printer, page_settings, page_wifi, page_spoolman, page_files;
+extern const ui_page_t page_home, page_printer, page_webcam, page_add_printer, page_settings, page_wifi, page_spoolman, page_files, page_spool_form;
 
 void ui_init(lv_display_t *disp);
 void ui_nav_push(page_id_t id, int arg);
@@ -99,6 +101,20 @@ void ui_numpad(const char *title, float initial, const int *presets, int npreset
 
 typedef void (*ui_prompt_cb_t)(const char *text, void *user);
 void ui_prompt(const char *title, const char *initial, ui_prompt_cb_t cb, void *user);
+
+/* Pickers (ui_pickers.c). ui_pick: index -1 = the "new_label" row, text = what was typed. */
+typedef void (*ui_pick_cb_t)(int index, const char *text, void *user);
+typedef void (*ui_pick_done_cb_t)(void *user);
+void ui_pick(const char *title, const char *const *items, int n, int selected, const char *new_label, ui_pick_cb_t cb, void *user);
+void ui_pick_multi(const char *title, const char *const *items, int n, bool *sel, ui_pick_done_cb_t done, void *user);
+typedef void (*ui_color_cb_t)(int32_t rgb, void *user);              /* -1 = no colour */
+void ui_color_pick(const char *title, int32_t initial, ui_color_cb_t cb, void *user);
+typedef void (*ui_date_cb_t)(time_t t, void *user);                  /* 0 = cleared */
+void ui_date_pick(const char *title, time_t initial, ui_date_cb_t cb, void *user);
+void ui_keyboard_close(void);
+void ui_modal_track(lv_obj_t *overlay);   /* top-layer dialog: closed when the page changes */
+void ui_modal_close(lv_obj_t *overlay);   /* close one (async) */
+bool ui_type_text(const char *txt, bool enter);                      /* console: type into the focused field */
 
 lv_color_t  ui_status_color(int printer_status);
 void        ui_fmt_duration(char *out, size_t cap, float seconds);

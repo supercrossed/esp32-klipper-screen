@@ -57,9 +57,26 @@ Every `gcode_macro` whose name doesn't start with `_`, sorted. Tap one to run it
 
 ### Spools (Spoolman)
 Shown when the printer's Moonraker has a `[spoolman]` section.
-- **Spools / Filaments** tabs list colour, name, vendor, material, grams left and location.
-- Tap a spool for its details and a large **QR code** (`web+spoolman:s-<id>`) that a 2D scanner can read off the screen.
+- **Spools / Filaments / Makers** tabs list colour, name, manufacturer, material, grams left and location. **Archived** shows archived spools too.
+- Tap a spool for its details and a large **QR code**. By default it holds `web+spoolman:s-<id>`, the same as Spoolman's own labels, which barcode-scanner setups (AFC, Happy Hare, Spoolman's scan page) read. A phone camera can't open that: **Settings → Label printer → Spool QR code → Web link** makes it a link to the spool's page instead, and tapping the code switches it for that spool. Don't use the link with a scanner setup that keeps only the digits: the address's numbers end up in the spool number. **Print label** prints the code that's showing.
+- A filament's QR code is a link to its page in Spoolman.
 - **Set active on <printer>** or **Clear active spool**. The active spool is marked with ✓.
+- **Weigh**: put the spool on a scale and type the reading (spool included). Spoolman works out what's left. This needs an empty spool weight on the spool, its filament or its manufacturer.
+- **New** adds a spool, filament or manufacturer (whichever tab you're on). **Edit**, **Duplicate**, **Archive** and **Delete** work on the one you picked. On a filament, **Add spool** starts a new spool of it.
+- The forms have the same fields as Spoolman's web page, including your own extra fields. Required fields are marked with a red *.
+  - Manufacturer, filament, material and location open a picker with a search box. **New …** at the top adds one.
+  - On a spool, choose **Used**, **Remaining** or **Measured** weight and type that one. The other two follow.
+  - A new filament can be filled in from **Spoolman's database** of about 9,500 filaments: search for maker, name, material or colour, tap one, then check the fields.
+- A filament still used by spools, or a manufacturer still used by filaments, can't be deleted. The screen says so.
+- **Print label** prints the item's QR code with its name, material, maker, colour code, nozzle and bed temperatures and number on a Bluetooth label printer (see below).
+
+### Label printer (Settings → Label printer)
+For Bluetooth label printers that understand TSPL, like the Clabel CT221D, with 50 × 30 mm labels.
+- **Choose printer** searches for about 6 seconds. Label printers are listed first and marked; tap yours. No pairing or PIN is needed. If you tap **Print label** before choosing, the search opens by itself.
+- **Spool QR code**: *Spoolman code* (default, for barcode scanners) or *Web link* (for a phone camera).
+- **Test print** prints a sample label. **Move right / Move down** shift everything by whole millimetres if your labels sit off-centre, and **Darkness** sets how dark it prints.
+- Bluetooth starts only when you print. The printer stays connected for 30 seconds after the last label (so a batch prints quickly), then Bluetooth turns off again. If the printer is off or out of reach you get a message, after one automatic retry.
+- The board's Wi-Fi chip also does the Bluetooth, so a webcam stream slows down while a label is printing.
 
 ### Console (right bar)
 The printer's recent console, the same one shown in Mainsail or Fluidd, newest first. Your commands are blue and errors red. Type a command at the top (it stays visible above the keyboard) and tap **Send**, or use a shortcut: `QUERY_ENDSTOPS`, `GET_POSITION`, `M115`, `HELP`. The console refreshes every second while open.

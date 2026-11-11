@@ -2,10 +2,27 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.5.0] - 2026-11-10
+
+### Added
+- **Add and edit in Spoolman, from the screen.** New **Spools / Filaments / Makers** tabs, a **New** button, and **Edit**, **Duplicate** and **Delete** on each item, with the same fields, units and help text as Spoolman's own web page:
+  - **Filaments:** name, manufacturer (pick one or add a new one), single or multi-colour (with direction), material, price, density, diameter, weight, spool weight, temperatures, article number and comment.
+  - **Spools:** filament, first / last used dates, price, initial and empty weight, used / remaining / measured weight (the other two are worked out as you type, as in Spoolman), location (pick or add), lot number, comment, and how many identical spools to create.
+  - **Manufacturers:** name, empty spool weight and comment.
+  - **Extra fields** you've defined in Spoolman's settings show up on the forms too.
+- **Fill in a new filament from Spoolman's online filament database:** search by maker, name, material or colour (about 9,500 filaments) and tap one. A manufacturer that doesn't exist yet is created when you save, as Spoolman does.
+- **Print spool and filament labels on a Bluetooth label printer** (tested with the Clabel CT221D and 50 × 30 mm labels). **Print label** prints the QR code with the name, material, maker, colour, nozzle and bed temperatures. Set it up in **Settings → Label printer**: search, tap your printer, test print, nudge the position, darkness. Bluetooth runs on the board's Wi-Fi chip and only while printing: the printer is released, and Bluetooth turned off, 30 seconds after the last label.
+- **Weigh** a spool: type what the scale shows (spool included) and Spoolman works out what's left. **Archive / Unarchive** a spool, and an **Archived** button to show archived ones.
+- **QR codes for filaments** (a link to the filament's page in Spoolman). A spool's code stays Spoolman's `web+spoolman:` code, which barcode scanners (AFC, Happy Hare) read; Settings → Label printer can make it a web link for phones, and tapping the code switches one spool. New spools and filaments show their code as soon as they're saved.
+- Prices show your Spoolman currency (€, $, £, …).
 
 ### Changed
 - **Smoother scrolling on the 5″** (about 7% more frames on full-screen scrolls, e.g. 18.5 → 19.9 fps). The screen is a portrait panel used sideways, so every frame is rotated by the P4's image hardware; that now happens in the background while the next part of the frame is drawn, instead of one after the other. Tested for hours, including 15 minutes of webcam, with the picture checked pixel for pixel against what the UI drew. The 7″, 8″ and 10.1″ keep the old way until they're tested.
+- Typing into a number field (on the Spoolman forms and the temperature pad) replaces the number that's there instead of adding to it.
+- Fields near the bottom of a page now scroll up above the on-screen keyboard.
+
+### Fixed
+- A dialog that was open when the page changed (for example after tapping a job-finished banner) is now closed, instead of acting on the page you'd left.
 
 ## [0.4.13] - 2026-11-09
 

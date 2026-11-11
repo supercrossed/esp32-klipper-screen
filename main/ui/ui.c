@@ -440,6 +440,45 @@ void ui_fmt_duration(char *out, size_t cap, float s)
     else snprintf(out, cap, "%dm %02ds", m, sec);
 }
 
+/* ── modal dialogs on the top layer ──────────────────────────────────────
+ * Dialogs (confirm, number pad, prompt, pickers) belong to the page that
+ * opened them: a page change (e.g. tapping a job-ended banner, which shows
+ * above them) closes them, so none can call back into a page that is gone.
+ * Close them with ui_modal_close() so a pending delete is never repeated. */
+#define MODAL_MAX 8
+static lv_obj_t *s_modals[MODAL_MAX];
+
+static void modal_untrack(lv_obj_t *o)
+{
+    for (int i = 0; i < MODAL_MAX; i++) if (s_modals[i] == o) s_modals[i] = NULL;
+}
+
+static void modal_deleted(lv_event_t *e) { modal_untrack(lv_event_get_target(e)); }
+
+void ui_modal_track(lv_obj_t *o)
+{
+    for (int i = 0; i < MODAL_MAX; i++) if (!s_modals[i]) {
+        s_modals[i] = o;
+        lv_obj_add_event_cb(o, modal_deleted, LV_EVENT_DELETE, NULL);
+        return;
+    }
+}
+
+void ui_modal_close(lv_obj_t *o)
+{
+    modal_untrack(o);
+    lv_obj_delete_async(o);
+}
+
+static void modals_close_all(void)
+{
+    for (int i = MODAL_MAX - 1; i >= 0; i--) {   /* newest first (a prompt over its picker) */
+        lv_obj_t *o = s_modals[i];
+        s_modals[i] = NULL;
+        if (o) lv_obj_delete(o);
+    }
+}
+
 /* ── keyboard ────────────────────────────────────────────────────────── */
 static void kb_close(void)
 {
@@ -450,6 +489,10 @@ static void kb_close(void)
     if (s_kb_ta) lv_obj_remove_state(s_kb_ta, LV_STATE_FOCUSED);
     s_kb_ta = NULL;
     lv_obj_set_style_pad_bottom(s_content, 16, 0);
+    /* the keyboard's room is gone: don't leave the page scrolled past its end */
+    lv_obj_update_layout(s_content);
+    int32_t sb = lv_obj_get_scroll_bottom(s_content), y = lv_obj_get_scroll_y(s_content);
+    if (sb < 0 && y > 0) lv_obj_scroll_by(s_content, 0, -sb < y ? -sb : y, LV_ANIM_ON);   /* never above the top */
 }
 
 static void kb_event(lv_event_t *e)
@@ -458,12 +501,36 @@ static void kb_event(lv_event_t *e)
     if (code == LV_EVENT_READY || code == LV_EVENT_CANCEL) kb_close();
 }
 
+/* Keep the field being typed into above the keyboard: page fields scroll the
+ * content area so the field ends just above the keyboard. */
+static void kb_scroll_to(lv_obj_t *ta)
+{
+    lv_obj_update_layout(s_content);
+    lv_obj_update_layout(s_kb);
+    lv_area_t a, kb, c;
+    lv_obj_get_coords(ta, &a);
+    lv_obj_get_coords(s_kb, &kb);
+    lv_obj_get_coords(s_content, &c);
+    bool in_page = false;
+    for (lv_obj_t *p = lv_obj_get_parent(ta); p; p = lv_obj_get_parent(p)) if (p == s_content) in_page = true;
+    if (!in_page) return;   /* dialogs on the top layer place themselves */
+    int32_t over = a.y2 + 12 - kb.y1;            /* below the keyboard's top edge */
+    int32_t under = c.y1 + 8 - a.y1;             /* above the visible content */
+    if (over > 0) lv_obj_scroll_by_bounded(s_content, 0, -over, LV_ANIM_OFF);
+    else if (under > 0) lv_obj_scroll_by_bounded(s_content, 0, under, LV_ANIM_OFF);
+    ESP_LOGD(TAG, "kb: field %d..%d, keyboard at %d, scrolled to %d", (int)a.y1, (int)a.y2, (int)kb.y1,
+             (int)lv_obj_get_scroll_y(s_content));
+}
+
 static void ta_event(lv_event_t *e)
 {
     lv_obj_t *ta = lv_event_get_target(e);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_FOCUSED || code == LV_EVENT_CLICKED) {
-        if (s_kb && s_kb_ta == ta) return;
+        if (s_kb && s_kb_ta == ta) {
+            kb_scroll_to(ta);   /* again on release, in case the press scrolled the page */
+            return;
+        }
         if (!s_kb) {
             s_kb = lv_keyboard_create(lv_layer_top());
             lv_obj_set_size(s_kb, LV_PCT(100), ui_is_portrait() ? 420 : 330);
@@ -477,13 +544,30 @@ static void ta_event(lv_event_t *e)
         if (mode == LV_KEYBOARD_MODE_TEXT_UPPER) mode = LV_KEYBOARD_MODE_USER_2; /* caps lock (G-code) */
         lv_keyboard_set_mode(s_kb, mode);
         lv_keyboard_set_textarea(s_kb, ta);
+        lv_obj_move_foreground(s_kb);   /* above any dialog opened since */
         s_kb_ta = ta;
+        lv_obj_update_layout(s_kb);   /* a new keyboard has no size until laid out */
         lv_obj_set_style_pad_bottom(s_content, lv_obj_get_height(s_kb) + 16, 0);
         lv_obj_update_layout(s_content);
-        lv_obj_scroll_to_view_recursive(ta, LV_ANIM_ON);
+        kb_scroll_to(ta);
     } else if (code == LV_EVENT_DELETE) {
         if (s_kb_ta == ta) kb_close();
     }
+}
+
+void ui_keyboard_close(void) { kb_close(); }
+
+bool ui_type_text(const char *txt, bool enter)
+{
+    if (!s_kb_ta) return false;
+    lv_obj_t *ta = s_kb_ta;
+    if (txt && !strcmp(txt, "~")) lv_textarea_delete_char(ta);   /* backspace */
+    else if (txt) lv_textarea_add_text(ta, txt);
+    if (enter) {   /* like the keyboard's OK key */
+        lv_obj_send_event(ta, LV_EVENT_READY, NULL);
+        kb_close();
+    }
+    return true;
 }
 
 void ui_attach_keyboard(lv_obj_t *ta, lv_keyboard_mode_t mode)
@@ -527,6 +611,7 @@ void ui_confirm(const char *title, const char *text, const char *ok, lv_color_t 
     c->user = user;
     lv_obj_t *mb = lv_msgbox_create(NULL);
     c->mb = mb;
+    ui_modal_track(lv_obj_get_parent(mb));   /* the msgbox's modal backdrop */
     lv_obj_set_style_bg_color(mb, COL_CARD, 0);
     lv_obj_set_style_radius(mb, 16, 0);
     lv_obj_set_width(mb, ui_is_portrait() ? LV_PCT(90) : 560);
@@ -551,13 +636,14 @@ typedef struct {
     ui_numpad_cb_t cb;
     void *user;
     lv_obj_t *overlay, *ta;
+    bool fresh;          /* the shown value is replaced by the first key */
     int presets[6];
     int npresets;
 } numpad_ctx_t;
 
 static void numpad_close(numpad_ctx_t *c)
 {
-    lv_obj_delete_async(c->overlay);
+    ui_modal_close(c->overlay);
 }
 
 static void numpad_btn(lv_event_t *e)
@@ -566,7 +652,11 @@ static void numpad_btn(lv_event_t *e)
     lv_obj_t *bm = lv_event_get_target(e);
     const char *txt = lv_buttonmatrix_get_button_text(bm, lv_buttonmatrix_get_selected_button(bm));
     if (!txt) return;
-    if (!strcmp(txt, LV_SYMBOL_BACKSPACE)) lv_textarea_delete_char(c->ta);
+    bool fresh = c->fresh;
+    c->fresh = false;
+    if (fresh && (!strcmp(txt, LV_SYMBOL_BACKSPACE) || (txt[0] >= '0' && txt[0] <= '9') || !strcmp(txt, ".")))
+        lv_textarea_set_text(c->ta, "");   /* typing replaces the value shown */
+    if (!strcmp(txt, LV_SYMBOL_BACKSPACE)) { if (!fresh) lv_textarea_delete_char(c->ta); }
     else if (!strcmp(txt, "Cancel")) numpad_close(c);
     else if (!strcmp(txt, "Set")) {
         const char *in = lv_textarea_get_text(c->ta);
@@ -587,6 +677,7 @@ static void numpad_preset(lv_event_t *e)
     char t[16];
     snprintf(t, sizeof(t), "%d", v);
     lv_textarea_set_text(c->ta, t);
+    c->fresh = true;
 }
 
 static void numpad_free(lv_event_t *e) { lv_free(lv_event_get_user_data(e)); }
@@ -604,6 +695,7 @@ void ui_numpad(const char *title, float initial, const int *presets, int npreset
     lv_obj_set_style_border_width(c->overlay, 0, 0);
     lv_obj_set_style_radius(c->overlay, 0, 0);
     lv_obj_add_event_cb(c->overlay, numpad_free, LV_EVENT_DELETE, c);
+    ui_modal_track(c->overlay);
 
     lv_obj_t *box = ui_card(c->overlay);
     lv_obj_set_size(box, 520, LV_SIZE_CONTENT);
@@ -620,6 +712,7 @@ void ui_numpad(const char *title, float initial, const int *presets, int npreset
     char t[16];
     snprintf(t, sizeof(t), "%d", (int)initial);
     lv_textarea_set_text(c->ta, t);
+    c->fresh = true;
 
     if (npresets > 0) {
         lv_obj_t *row = lv_obj_create(box);
@@ -661,6 +754,7 @@ void ui_set_title(const char *t) { lv_label_set_text(s_title, t); }
 static void show_top(void)
 {
     kb_close();
+    modals_close_all();
     if (s_cur && s_cur->destroy) s_cur->destroy();
     s_cur = NULL;
     lv_obj_clean(s_content);
@@ -900,6 +994,7 @@ void ui_init(lv_display_t *disp)
     s_pages[PAGE_SETTINGS] = &page_settings;
     s_pages[PAGE_WIFI] = &page_wifi;
     s_pages[PAGE_SPOOLMAN] = &page_spoolman;
+    s_pages[PAGE_SPOOL_FORM] = &page_spool_form;
     s_pages[PAGE_FILES] = &page_files;
 
     g_settings.light_mode = want_light();
@@ -1083,7 +1178,7 @@ static void prompt_free(lv_event_t *e) { lv_free(lv_event_get_user_data(e)); }
 static void prompt_cancel(lv_event_t *e)
 {
     prompt_ctx_t *c = lv_event_get_user_data(e);
-    lv_obj_delete_async(c->overlay);
+    ui_modal_close(c->overlay);
 }
 static void prompt_ok(lv_event_t *e)
 {
@@ -1092,7 +1187,7 @@ static void prompt_ok(lv_event_t *e)
     strlcpy(txt, lv_textarea_get_text(c->ta), sizeof(txt));
     ui_prompt_cb_t cb = c->cb;
     void *user = c->user;
-    lv_obj_delete_async(c->overlay);
+    ui_modal_close(c->overlay);
     if (cb && txt[0]) cb(txt, user);
 }
 
@@ -1108,6 +1203,7 @@ void ui_prompt(const char *title, const char *initial, ui_prompt_cb_t cb, void *
     lv_obj_set_style_border_width(c->overlay, 0, 0);
     lv_obj_set_style_radius(c->overlay, 0, 0);
     lv_obj_add_event_cb(c->overlay, prompt_free, LV_EVENT_DELETE, c);
+    ui_modal_track(c->overlay);
 
     lv_obj_t *box = ui_card(c->overlay);
     lv_obj_set_size(box, ui_is_portrait() ? LV_PCT(92) : 640, LV_SIZE_CONTENT);
@@ -1118,7 +1214,7 @@ void ui_prompt(const char *title, const char *initial, ui_prompt_cb_t cb, void *
     ui_label(box, FONT_L, COL_TEXT, title);
     c->ta = lv_textarea_create(box);
     lv_textarea_set_one_line(c->ta, true);
-    lv_textarea_set_max_length(c->ta, 31);
+    lv_textarea_set_max_length(c->ta, 63);
     lv_obj_set_width(c->ta, LV_PCT(100));
     lv_obj_set_style_text_font(c->ta, FONT_L, 0);
     lv_textarea_set_text(c->ta, initial ? initial : "");

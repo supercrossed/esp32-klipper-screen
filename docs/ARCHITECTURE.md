@@ -21,18 +21,22 @@
 | `main/http_util.c` | Keep-alive HTTP helper: growable PSRAM buffer, redirects, retry on stale sockets |
 | `main/discovery.c` | mDNS plus subnet sweep in batches of 9 hosts (sized to lwIP's 10-entry ARP table) |
 | `main/webcam.c` | MJPEG stream reader (snapshot loop as fallback) → hardware JPEG decode → PPA scale/rotate/mirror → triple buffer. A reader task and a decoder task overlap, with two JPEG input buffers |
-| `main/spoolman.c` | Spoolman over Moonraker's proxy |
+| `main/spoolman.c` | Spoolman over Moonraker's proxy: lists and form data, one write or read job at a time, and the external filament database (downloaded and indexed in PSRAM while a form uses it) |
 | `main/tz.c` | POSIX time-zone table and ip-api.com lookup |
 | `main/updater.c` | GitHub Releases check, HTTPS OTA into the inactive slot, rollback confirmation |
 | `main/files.c` | G-code file list and per-file metadata/thumbnail for the Files page |
 | `main/sound.c` | Alert chimes on the built-in speaker (ES8311), codec started on first use |
 | `main/ui/ui_alert.c` | Job-ended banners (queue filled by the pollers in `printers.c`) |
 | `main/machine.c` | Console history and system services, polled only while those tabs are open |
-| `main/screenshot.c` | On-demand screenshot server (`shot` command) and simulated taps |
+| `main/screenshot.c` | On-demand screenshot server (`shot` command), a virtual touch input for `tap` / `swipe`, and the `bench` / `fbcheck` test commands |
 | `main/serial_console.c` | USB-UART debug console |
 | `main/lv_mem_psram.c` | LVGL allocator in PSRAM |
 | `main/ui/ui.c` | Shell (header + content), navigation stack, palette/theme, fonts, keyboard, dialogs |
 | `main/ui/page_*.c` | One file per page. Each has `create`, `refresh` (4 Hz) and `destroy` |
+| `main/ui/page_spool_form.c` | Spoolman add / edit forms (spool, filament, manufacturer, extra fields) |
+| `main/ui/ui_pickers.c` | List (with search), colour and date pickers |
+| `main/label_printer.c` | Bluetooth LE label printer: NimBLE host on the P4, the C6's controller over esp_hosted (VHCI). Scan, connect, TSPL over the printer's serial characteristic; Bluetooth runs only around a print |
+| `main/ui/ui_label.c` | Draws the 50 × 30 mm label (UI fonts on an off-screen canvas, QR code set per module) into a TSPL bitmap; printer chooser |
 | `main/ui/ui_keyboard.c` | Keyboard layouts (number row, IP numpad) |
 | `main/ui/icons.h`, `icons/mdi.ttf` | Generated icon macros and the icon font |
 
@@ -58,7 +62,8 @@ Internal SRAM (about 100 KB free) is the scarce resource. esp_hosted allocates a
 
 - **Printer page**: only the selected sidebar tab is built. On close, polling for that printer drops back to the slow, light query.
 - **Webcam**: the task, JPEG and PPA engines, and the roughly 5–10 MB of frame buffers exist only while it's open.
-- **Spoolman**: its lists are freed on close.
+- **Spoolman**: its lists are freed on close. The list page hands them to the form page it opens, and the form frees everything, including the 3.5 MB filament database if it was searched.
+- **Dialogs** on the top layer (confirm, number pad, prompt, pickers) are closed by any page change, so none can call back into a page that's gone.
 - **Thumbnails** are the one exception. [`ui_thumb.c`](../main/ui/ui_thumb.c) decodes each print thumbnail once, already shrunk to the size it is shown at, and keeps it in PSRAM until that printer gets a new thumbnail. Up to 8 unused ones are kept (about 43 KB each at the usual tile size, at most ~190 KB at the largest), so going back to the home page doesn't decode the PNG again. That saved about 40 ms each time the home page opened. Entries are found by thumbnail version, which is unique across printers, so a picture can't end up on the wrong printer.
 
 ## Polling

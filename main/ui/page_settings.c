@@ -21,8 +21,10 @@
 #include "updater.h"
 #include "sound.h"
 #include "battery.h"
+#include "label_printer.h"
+#include "ui_label.h"
 
-enum { SEC_GRID = 0, SEC_NETWORK, SEC_PRINTERS, SEC_DISPLAY, SEC_TIME, SEC_UPDATES, SEC_DEVICE, SEC_COUNT };
+enum { SEC_GRID = 0, SEC_NETWORK, SEC_PRINTERS, SEC_DISPLAY, SEC_TIME, SEC_UPDATES, SEC_DEVICE, SEC_LABEL, SEC_COUNT };
 
 static const struct { const char *icon, *title; } SECTIONS[SEC_COUNT] = {
     [SEC_NETWORK]  = { ICON_WIFI,     "Network" },
@@ -31,6 +33,7 @@ static const struct { const char *icon, *title; } SECTIONS[SEC_COUNT] = {
     [SEC_TIME]     = { ICON_CLOCK,    "Time" },
     [SEC_UPDATES]  = { ICON_UPDATE,   "Updates" },
     [SEC_DEVICE]   = { ICON_CHIP,     "Device" },
+    [SEC_LABEL]    = { ICON_SPOOL,    "Label printer" },
 };
 
 static int s_sec;
@@ -235,9 +238,13 @@ static void build_grid(lv_obj_t *parent)
     lv_obj_set_flex_flow(parent, LV_FLEX_FLOW_ROW_WRAP);
     int cols = ui_is_portrait() ? 2 : 3;
     int w = (ui_width() - 32 - (cols - 1) * 16) / cols;
+    int rows = (SEC_COUNT - 1 + cols - 1) / cols;
+    int h = (ui_height() - 32 - (rows - 1) * 16) / rows;
+    if (h > 220) h = 220;
+    if (h < 170) h = 170;
     for (int i = 1; i < SEC_COUNT; i++) {
         lv_obj_t *t = ui_card(parent);
-        lv_obj_set_size(t, w, 220);
+        lv_obj_set_size(t, w, h);
         lv_obj_add_flag(t, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_set_style_bg_color(t, COL_CARD2, LV_STATE_PRESSED);
         lv_obj_set_flex_flow(t, LV_FLEX_FLOW_COLUMN);
@@ -278,6 +285,9 @@ static void refresh_grid(void)
     ui_set_text(s_sum[SEC_TIME], t);
     snprintf(t, sizeof(t), "%s  -  v%s", g_settings.device_name, esp_app_get_description()->version);
     ui_set_text(s_sum[SEC_DEVICE], t);
+    label_cfg_t lc;
+    label_cfg_get(&lc);
+    ui_set_text(s_sum[SEC_LABEL], lc.have ? lc.name : "Not set up");
     updater_get(&s_upd);
     if (s_upd.available) snprintf(t, sizeof(t), "Version %s available", s_upd.latest);
     else if (s_upd.state == UPD_CHECKING) strcpy(t, "Checking...");
@@ -563,13 +573,82 @@ static void build_device(lv_obj_t *c)
     wide_btn(g3, ICON_DELETE, "Factory reset", COL_ERR, factory_cb, NULL);
 }
 
+/* ── label printer ───────────────────────────────────────────────────── */
+static lv_obj_t *s_lbl_info;
+
+static void label_show(void)
+{
+    if (!s_lbl_info) return;
+    label_cfg_t c;
+    label_cfg_get(&c);
+    char t[200], m[100];
+    label_state_t st = label_state(m, sizeof(m));
+    if (!c.have) snprintf(t, sizeof(t), ICON_INFO "  No printer chosen. Tap Choose printer with the printer on and nearby.");
+    else snprintf(t, sizeof(t), ICON_CHECK "  %s  (%02X:%02X:%02X:%02X:%02X:%02X)\n%s", c.name, c.addr[5], c.addr[4],
+                  c.addr[3], c.addr[2], c.addr[1], c.addr[0], label_connected() ? "Connected" : "Connects when you print");
+    if (st == LABEL_ERROR || st == LABEL_DONE || st == LABEL_SENDING || st == LABEL_CONNECTING) {
+        strlcat(t, "\nLast: ", sizeof(t));
+        strlcat(t, m, sizeof(t));
+    }
+    ui_set_text(s_lbl_info, t);
+}
+
+static void label_chosen(void *u) { label_show(); }
+static void label_choose_cb(lv_event_t *e) { ui_label_choose(label_chosen, NULL); }
+static void label_forget_cb(lv_event_t *e) { label_forget(); ui_toast("Label printer forgotten"); label_show(); }
+
+static void label_test_cb(lv_event_t *e) { ui_label_test(); }
+
+static void label_opt(int which, lv_event_t *e)
+{
+    int v = lv_dropdown_get_selected(lv_event_get_target(e));
+    label_cfg_t c;
+    label_cfg_get(&c);
+    if (which == 0) c.dx_mm = v - 3;
+    else if (which == 1) c.dy_mm = v - 3;
+    else c.density = v + 1;
+    label_cfg_set(&c);
+}
+static void label_qr_cb(lv_event_t *e) { label_set_qr_link(lv_dropdown_get_selected(lv_event_get_target(e)) == 1); }
+static void label_dx_cb(lv_event_t *e) { label_opt(0, e); }
+static void label_dy_cb(lv_event_t *e) { label_opt(1, e); }
+static void label_dark_cb(lv_event_t *e) { label_opt(2, e); }
+
+static void build_label(lv_obj_t *c)
+{
+    label_cfg_t lc;
+    label_cfg_get(&lc);
+    lv_obj_t *g = group(c, "LABEL PRINTER  (Bluetooth)");
+    s_lbl_info = ui_label(g, FONT_M, COL_TEXT, "");
+    lv_label_set_long_mode(s_lbl_info, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(s_lbl_info, LV_PCT(100));
+    lv_obj_t *h = ui_label(g, FONT_S, COL_MUTED,
+                           "For Bluetooth label printers that speak TSPL, like the Clabel CT221D, with 50 x 30 mm labels. "
+                           "Spoolman spools and filaments get a Print label button. Bluetooth starts on the first print, "
+                           "and the printer is connected only while printing (it disconnects 30 s after the last label).");
+    lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(h, LV_PCT(100));
+    wide_btn(g, ICON_SEARCH, lc.have ? "Choose another printer" : "Choose printer", COL_ACCENT, label_choose_cb, NULL);
+    wide_btn(g, ICON_SPOOL, "Test print", COL_CARD2, label_test_cb, NULL);
+    if (lc.have) wide_btn(g, ICON_DELETE, "Forget this printer", COL_CARD2, label_forget_cb, NULL);
+
+    lv_obj_t *g2 = group(c, "ADJUST");
+    dropdown(row(g2, ICON_SPOOL, "Spool QR code"), "Spoolman code (scanners)\nWeb link (phones)", label_qr_link() ? 1 : 0, label_qr_cb);
+    static const char *const NUDGE = "-3 mm\n-2 mm\n-1 mm\n0\n+1 mm\n+2 mm\n+3 mm";
+    dropdown(row(g2, ICON_RIGHT, "Move right"), NUDGE, lc.dx_mm + 3, label_dx_cb);
+    dropdown(row(g2, ICON_DOWN, "Move down"), NUDGE, lc.dy_mm + 3, label_dy_cb);
+    dropdown(row(g2, ICON_TUNE, "Darkness"), "1\n2\n3\n4\n5\n6\n7\n8 (default)\n9\n10\n11\n12\n13\n14\n15",
+             lc.density - 1, label_dark_cb);
+    label_show();
+}
+
 /* ── page ────────────────────────────────────────────────────────────── */
 static void create(lv_obj_t *parent, int arg)
 {
     s_sec = (arg > 0 && arg < SEC_COUNT) ? arg : SEC_GRID;
     s_tick = 0;
     memset(s_sum, 0, sizeof(s_sum));
-    s_info = s_time_lbl = s_name_ta = s_bat_info = NULL;
+    s_info = s_time_lbl = s_name_ta = s_bat_info = s_lbl_info = NULL;
     if (s_sec == SEC_GRID) { build_grid(parent); refresh_grid(); return; }
 
     char title[48];
@@ -584,6 +663,7 @@ static void create(lv_obj_t *parent, int arg)
     case SEC_TIME:     build_time(c); break;
     case SEC_UPDATES:  build_updates(c); refresh_updates(); break;
     case SEC_DEVICE:   build_device(c); break;
+    case SEC_LABEL:    build_label(c); break;
     }
 }
 
@@ -593,6 +673,7 @@ static void refresh(void)
     char t[400];
     if (s_sec == SEC_GRID) { refresh_grid(); return; }
     if (s_sec == SEC_UPDATES && s_info) { refresh_updates(); return; }
+    if (s_sec == SEC_LABEL) { label_show(); return; }
     if (s_sec == SEC_NETWORK && s_info) {
         esp_netif_ip_info_t ip;
         char mac[20];
