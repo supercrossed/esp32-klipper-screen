@@ -1,5 +1,9 @@
 # Troubleshooting
 
+## Installing
+
+- **The web installer says "Failed to initialize" (and holding BOOT doesn't help).** Reload the installer page with Ctrl+Shift+R so the browser picks up the current version: older versions couldn't recognise boards with the newer ESP32-P4 chip. Make sure the cable is in the **USB-UART** port and no other program (a serial monitor, another browser tab) has the port open. If it still fails, flash with esptool as shown in the [install guide](INSTALL.md).
+
 ## Wi-Fi
 
 - **"Starting radio" stays on screen.** The P4 can't reach the ESP32-C6. This firmware expects Waveshare's factory C6 firmware. If you reflashed the C6, put the stock image back.

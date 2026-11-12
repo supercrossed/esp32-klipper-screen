@@ -2,6 +2,11 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project uses [semantic versioning](https://semver.org/).
 
+## [0.5.1] - 2026-11-12
+
+### Fixed
+- **The web installer works on newer boards.** On boards with the newer ESP32-P4 chip (revision 3), the installer stopped with "Failed to initialize", and holding BOOT didn't help. It now uses ESP Web Tools 10.5.2, which recognises these chips. The firmware itself is unchanged.
+
 ## [0.5.0] - 2026-11-10
 
 ### Added
